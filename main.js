@@ -58,6 +58,14 @@ function normalizeProduct(raw) {
 }
 
 function extractProductsFromApiResponse(json, debugUrl = '') {
+  // Tokopedia GraphQL wraps responses in an array: [{ data: { ... } }]
+  // Unwrap first so all path lookups work on the inner object
+  if (Array.isArray(json)) {
+    if (json.length === 0) return { products: [], source: 'empty_array' };
+    json = json[0];
+  }
+  if (!json || typeof json !== 'object') return { products: [], source: 'invalid' };
+
   // Try all known Tokopedia GraphQL response shapes
   const products = [];
 
