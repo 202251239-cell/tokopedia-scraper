@@ -1,20 +1,20 @@
 {
   "title": "Tokopedia Product Search Scraper",
-  "description": "Scrape product search results from Tokopedia (Indonesia's largest marketplace). Extracts product name, price, discount, shop info, ratings, reviews, and more. Supports pagination, price range filters, official store filter, and location filtering.",
+  "description": "Scrape product search results from Tokopedia (Indonesia's largest marketplace). Extracts product name, price, discount, shop info, ratings, reviews, and more.",
   "type": "object",
   "schemaVersion": 1,
   "required": ["searchTerms"],
   "properties": {
     "searchTerms": {
       "title": "Search Keywords",
-      "description": "Keywords to search for on Tokopedia (e.g., 'laptop gaming', 'sepatu nike', 'handphone samsung')",
+      "description": "Keywords to search for on Tokopedia (e.g., 'laptop gaming', 'sepatu nike')",
       "type": "string",
       "editor": "textfield",
       "prefill": "laptop gaming"
     },
     "maxPages": {
       "title": "Max Pages",
-      "description": "Maximum number of pages to scrape. Each page contains up to 50 products. Max 50 pages (2500 products).",
+      "description": "Maximum number of pages to scrape. Each page has up to 50 products. Max 50 pages.",
       "type": "integer",
       "editor": "number",
       "minimum": 1,
@@ -22,59 +22,49 @@
       "default": 1,
       "prefill": 1
     },
-    "itemsPerPage": {
-      "title": "Items Per Page",
-      "description": "Number of products per page (max 50).",
-      "type": "integer",
-      "editor": "number",
-      "minimum": 1,
-      "maximum": 50,
-      "default": 50,
-      "prefill": 50
-    },
     "sortBy": {
       "title": "Sort By",
       "description": "Sort results by a specific field.",
       "type": "string",
       "editor": "select",
-      "default": "",
+      "default": "relevance",
       "options": [
-        { "label": "Relevance (default)", "value": "" },
-        { "label": "Newest", "value": "5" },
-        { "label": "Highest Price", "value": "4" },
-        { "label": "Lowest Price", "value": "3" },
-        { "label": "Most Popular", "value": "2" },
-        { "label": "Most Reviews", "value": "1" }
+        { "label": "Relevance (default)", "value": "relevance" },
+        { "label": "Newest", "value": "newest" },
+        { "label": "Highest Price", "value": "price_high" },
+        { "label": "Lowest Price", "value": "price_low" },
+        { "label": "Most Popular", "value": "popular" },
+        { "label": "Most Reviews", "value": "reviews" }
       ]
     },
     "minPrice": {
       "title": "Minimum Price (IDR)",
-      "description": "Filter products with price above this value (in IDR, no dots).",
+      "description": "Filter products with price above this value. Leave 0 for no filter.",
       "type": "integer",
       "editor": "number",
       "minimum": 0,
-      "default": null
+      "default": 0
     },
     "maxPrice": {
       "title": "Maximum Price (IDR)",
-      "description": "Filter products with price below this value (in IDR, no dots).",
+      "description": "Filter products with price below this value. Leave 0 for no filter.",
       "type": "integer",
       "editor": "number",
       "minimum": 0,
-      "default": null
+      "default": 0
     },
     "minRating": {
       "title": "Minimum Rating",
-      "description": "Only return products with rating >= this value (1-5).",
+      "description": "Only return products with this rating or higher. 0 = any rating.",
       "type": "integer",
       "editor": "select",
-      "default": null,
+      "default": "0",
       "options": [
-        { "label": "Any", "value": null },
-        { "label": "1+", "value": 1 },
-        { "label": "2+", "value": 2 },
-        { "label": "3+", "value": 3 },
-        { "label": "4+", "value": 4 }
+        { "label": "Any rating", "value": "0" },
+        { "label": "1+", "value": "1" },
+        { "label": "2+", "value": "2" },
+        { "label": "3+", "value": "3" },
+        { "label": "4+", "value": "4" }
       ]
     },
     "officialStore": {
@@ -86,7 +76,7 @@
     },
     "location": {
       "title": "Location",
-      "description": "Filter by seller city (e.g., 'Jakarta', 'Surabaya', 'Kudus'). Leave empty for all locations.",
+      "description": "Filter by seller city (e.g., 'Jakarta', 'Surabaya'). Leave empty for all.",
       "type": "string",
       "editor": "textfield",
       "default": ""
