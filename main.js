@@ -57,74 +57,122 @@ function normalizeProduct(raw) {
   };
 }
 
-function extractProductsFromApiResponse(json) {
-  // Try all known response shapes
+function extractProductsFromApiResponse(json, debugUrl = '') {
+  // Try all known Tokopedia GraphQL response shapes
   const products = [];
 
-  // Shape 1: { data: { ace_search_product_v4: { data: { products: [...] } } } }
-  const ace = json?.data?.ace_search_product_v4?.data?.products;
-  if (ace && Array.isArray(ace)) {
-    for (const p of ace) {
-      products.push({
-        id: p.id,
-        name: p.name,
-        price: p.price?.value || null,
-        priceText: p.price?.text || null,
-        originalPrice: p.price?.original || null,
-        discount: p.price?.discount || null,
-        discountPercent: p.price?.discountPercent || 0,
-        imageUrl: p.imageUrl || null,
-        url: p.url || null,
-        shopName: p.shop?.name || null,
-        shopCity: p.shop?.city || null,
-        isOfficialStore: p.shop?.isOfficial || false,
-        isPowerMerchant: p.shop?.isPowerBadge || false,
-        reviewCount: p.stats?.countReview || 0,
-        favoriteCount: p.stats?.countFavorite || 0,
-        categoryName: p.category?.name || null,
-      });
-    }
-    if (products.length > 0) return { products, source: 'ace_gql' };
+  // Helper: normalize a raw product object from Tokopedia GraphQL
+  function fromRaw(p) {
+    if (!p || (!p.name && !p.title)) return null;
+    const price = p.price || {};
+    const shop = p.shop || {};
+    const stats = p.stats || {};
+    return {
+      id: p.id || p.productId || null,
+      name: p.name || p.title || null,
+      price: typeof price.value === 'number' ? price.value : (p.priceValue || null),
+      priceText: price.text || p.priceText || null,
+      originalPrice: price.original || p.originalPrice || null,
+      discount: price.discount || p.discount || null,
+      discountPercent: price.discountPercent || p.discountPercent || 0,
+      currency: price.currency || 'IDR',
+      imageUrl: p.imageUrl || p.image || null,
+      url: p.url || p.link || null,
+      shopId: shop.id || p.shopId || null,
+      shopName: shop.name || p.shopName || null,
+      shopCity: shop.city || p.shopCity || null,
+      isOfficialStore: shop.isOfficial || p.isOfficial || false,
+      isPowerMerchant: shop.isPowerBadge || p.isPowerBadge || false,
+      reviewCount: stats.countReview || p.reviewCount || 0,
+      favoriteCount: stats.countFavorite || p.favoriteCount || 0,
+      soldCount: p.soldCount || p.countSold || null,
+      categoryName: (p.category && p.category.name) || p.categoryName || null,
+      scrapedAt: new Date().toISOString(),
+    };
   }
 
-  // Shape 2: { data: { ... products embedded in response } }
+  // Shape 1 (v5): { data: { ace_search_product_v5: { data: [...products] } } }
+  // Tokopedia's SearchProductV5 puts products as a direct array under .data
+  for (const vkey of ['ace_search_product_v5', 'ace_search_product_v4', 'ace_search_product_v3']) {
+    const ace = json?.data?.[vkey];
+    if (ace) {
+      // Case A: products array is directly at ace.data
+      if (Array.isArray(ace.data)) {
+        for (const p of ace.data) {
+          const n = fromRaw(p);
+          if (n) products.push(n);
+        }
+        if (products.length > 0) {
+          log.info(`Matched ${vkey} shape A (ace.data array): ${products.length} products`);
+          return { products, source: `${vkey}_data_array` };
+        }
+      }
+      // Case B: products nested at ace.data.products (older format)
+      if (ace.data?.products && Array.isArray(ace.data.products)) {
+        for (const p of ace.data.products) {
+          const n = fromRaw(p);
+          if (n) products.push(n);
+        }
+        if (products.length > 0) {
+          log.info(`Matched ${vkey} shape B (ace.data.products): ${products.length} products`);
+          return { products, source: `${vkey}_data_products` };
+        }
+      }
+      // Case C: products directly at ace.products
+      if (ace.products && Array.isArray(ace.products)) {
+        for (const p of ace.products) {
+          const n = fromRaw(p);
+          if (n) products.push(n);
+        }
+        if (products.length > 0) {
+          log.info(`Matched ${vkey} shape C (ace.products): ${products.length} products`);
+          return { products, source: `${vkey}_products` };
+        }
+      }
+      // Log what keys we see for debugging
+      log.info(`${vkey} keys: ${JSON.stringify(Object.keys(ace))}`);
+      if (ace.data) log.info(`${vkey}.data type: ${Array.isArray(ace.data) ? 'array[' + ace.data.length + ']' : typeof ace.data}, keys: ${Array.isArray(ace.data) ? 'N/A' : JSON.stringify(Object.keys(ace.data || {}))}`);
+    }
+  }
+
+  // Shape 2: Generic scan — any key under json.data containing products
   const dataKeys = Object.keys(json?.data || {});
   for (const key of dataKeys) {
     const val = json.data[key];
-    if (val?.data?.products && Array.isArray(val.data.products)) {
-      for (const p of val.data.products) {
-        products.push({
-          id: p.id,
-          name: p.name,
-          price: p.price?.value || null,
-          priceText: p.price?.text || null,
-          imageUrl: p.imageUrl || null,
-          url: p.url || null,
-          shopName: p.shop?.name || null,
-          reviewCount: p.stats?.countReview || 0,
-        });
+    // Check various nesting patterns
+    const candidates = [
+      val?.data?.products,
+      val?.products,
+      val?.data,
+    ].filter(Array.isArray);
+    for (const arr of candidates) {
+      for (const p of arr) {
+        const n = fromRaw(p);
+        if (n) products.push(n);
       }
-      if (products.length > 0) return { products, source: key };
+      if (products.length > 0) {
+        log.info(`Matched generic shape (json.data.${key}): ${products.length} products`);
+        return { products, source: `generic_${key}` };
+      }
     }
   }
 
   // Shape 3: data is array of products directly
   if (Array.isArray(json?.data)) {
     for (const p of json.data) {
-      if (p.name && (p.price || p.url)) {
-        products.push({
-          id: p.id || p.productId || null,
-          name: p.name,
-          price: p.price?.value || p.priceValue || null,
-          priceText: p.price?.text || null,
-          imageUrl: p.imageUrl || p.image || null,
-          url: p.url || p.link || null,
-          shopName: p.shop?.name || p.shopName || null,
-          reviewCount: p.stats?.countReview || p.reviewCount || 0,
-        });
-      }
+      const n = fromRaw(p);
+      if (n) products.push(n);
     }
-    if (products.length > 0) return { products, source: 'data_array' };
+    if (products.length > 0) {
+      log.info(`Matched data_array shape: ${products.length} products`);
+      return { products, source: 'data_array' };
+    }
+  }
+
+  // Debug: dump top-level structure if nothing matched
+  if (debugUrl) {
+    const snippet = debugUrl.includes('SearchProduct') ? ' (SEARCH RESPONSE!)' : '';
+    log.info(`No products found in ${debugUrl.slice(0, 80)}${snippet}. Top keys: ${JSON.stringify(Object.keys(json || {}))}. Data keys: ${JSON.stringify(dataKeys)}`);
   }
 
   return { products: [], source: 'none' };
@@ -205,7 +253,7 @@ Actor.main(async () => {
       // Try to extract from captured API responses
       let allProducts = [];
       for (const { url, json } of capturedResponses) {
-        const { products, source } = extractProductsFromApiResponse(json);
+        const { products, source } = extractProductsFromApiResponse(json, url);
         if (products.length > 0) {
           log.info(`Found ${products.length} products from ${source}`);
           allProducts = products;
