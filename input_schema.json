@@ -28,7 +28,7 @@
       "type": "string",
       "editor": "select",
       "default": "relevance",
-      "options": [
+      "enumSuggestedValues": [
         { "label": "Relevance (default)", "value": "relevance" },
         { "label": "Newest", "value": "newest" },
         { "label": "Highest Price", "value": "price_high" },
@@ -59,7 +59,7 @@
       "type": "integer",
       "editor": "select",
       "default": "0",
-      "options": [
+      "enumSuggestedValues": [
         { "label": "Any rating", "value": "0" },
         { "label": "1+", "value": "1" },
         { "label": "2+", "value": "2" },
