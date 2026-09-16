@@ -124,6 +124,23 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       if (pct) discount = parseInt(pct, 10) || null;
     }
 
+    // Parse original price
+    let originalPrice = null;
+    if (typeof price === 'object' && price !== null) {
+      originalPrice = price.original || null;
+    }
+    if (originalPrice === null) originalPrice = p.originalPrice || null;
+    // Parse original price from string
+    if (typeof originalPrice === 'string') {
+      const cleaned = originalPrice.replace(/[^0-9]/g, '');
+      if (cleaned) originalPrice = parseInt(cleaned, 10) || originalPrice;
+    }
+
+    // Computed discount fallback: originalPrice - price (must be before discountPercent)
+    if (discount === null && numericPrice && originalPrice && typeof originalPrice === 'number') {
+      discount = originalPrice - numericPrice;
+    }
+
     // Parse discount percent
     let discountPercent = 0;
     if (typeof price === 'object' && price !== null) {
@@ -138,23 +155,6 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
     // Compute from discount amount if still 0
     if (!discountPercent && discount && numericPrice && numericPrice > 0) {
       discountPercent = Math.round((discount / (discount + numericPrice)) * 100);
-    }
-
-    // Parse original price
-    let originalPrice = null;
-    if (typeof price === 'object' && price !== null) {
-      originalPrice = price.original || null;
-    }
-    if (originalPrice === null) originalPrice = p.originalPrice || null;
-    // Parse original price from string
-    if (typeof originalPrice === 'string') {
-      const cleaned = originalPrice.replace(/[^0-9]/g, '');
-      if (cleaned) originalPrice = parseInt(cleaned, 10) || originalPrice;
-    }
-
-    // Computed discount fallback: originalPrice - price
-    if (discount === null && numericPrice && originalPrice && typeof originalPrice === 'number') {
-      discount = originalPrice - numericPrice;
     }
 
     // Extract rating
