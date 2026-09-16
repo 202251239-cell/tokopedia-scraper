@@ -6,12 +6,11 @@ Scrape product search results from [Tokopedia](https://www.tokopedia.com) — In
 
 Per product:
 - **Identity**: product ID, name, URL, image URL
-- **Pricing**: current price, original price, discount amount, discount percentage, currency (IDR)
-- **Shop**: shop ID, name, URL, city, official store status, power merchant status
-- **Performance**: view count, review count, talk count, favorite count
-- **Category**: category ID, name, breadcrumb
-- **Badges & Labels**: Official Store badge, cashback, promo labels
-- **Metadata**: variant count, minimum order, pre-order status, weight
+- **Pricing**: current price (numeric), price text (formatted), original price, discount amount, discount percentage, currency (IDR)
+- **Shop**: shop ID, name, city, official store status, power merchant status
+- **Performance**: rating, review count, favorite count, sold count
+- **Category**: category name
+- **Metadata**: scraped timestamp
 
 Plus a `_metadata` record at the end with search summary stats.
 
@@ -41,8 +40,7 @@ A 50-product search run costs ~$0.45 on the free tier.
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `searchTerms` | ✅ | — | Search keywords (e.g., "laptop gaming") |
-| `maxPages` | | 1 | Pages to scrape (1–50, each = up to 50 products) |
-| `itemsPerPage` | | 50 | Products per page (max 50) |
+| `maxPages` | | 1 | Pages to scrape (1–50, each = up to 60 products) |
 | `sortBy` | | Relevance | Sort: relevance, newest, price (high/low), popular, reviews |
 | `minPrice` | | — | Minimum price filter (IDR) |
 | `maxPrice` | | — | Maximum price filter (IDR) |
@@ -54,34 +52,34 @@ A 50-product search run costs ~$0.45 on the free tier.
 
 ```json
 {
-  "id": "12345678",
-  "name": "Laptop ASUS VivoBook 14 Intel i5-1235U 8GB 512GB",
-  "price": 7499000,
-  "priceText": "Rp7.499.000",
-  "originalPrice": 8999000,
-  "discount": 1500000,
-  "discountPercent": 17,
+  "id": "102139308541",
+  "name": "VIKING Baterai BM59 For Xiaomi Mi 11T Double Power",
+  "price": 143000,
+  "priceText": "Rp143.000",
+  "originalPrice": 183000,
+  "discount": 40000,
+  "discountPercent": 22,
   "currency": "IDR",
-  "imageUrl": "https://ecs7-p.tokopedia.net/img/cache/...",
-  "url": "https://www.tokopedia.com/officialstore/laptop-asus...",
-  "shopId": 6309604,
-  "shopName": "ASUS Official Store",
+  "imageUrl": "https://p16-images-sign-sg.tokopedia-static.net/...",
+  "url": "https://www.tokopedia.com/vikingpowerbattery/viking-baterai-bm59...",
+  "shopId": 7548661,
+  "shopName": "VIKING OFFICIAL STORE",
   "shopCity": "Jakarta Pusat",
-  "isOfficialStore": true,
-  "isPowerMerchant": true,
-  "viewCount": 12500,
-  "reviewCount": 342,
-  "favoriteCount": 890,
-  "categoryName": "Komputer & Laptop",
-  "labels": [{ "position": "promo", "title": "Cashback", "type": "lightGreen" }],
+  "isOfficialStore": false,
+  "isPowerMerchant": false,
+  "rating": 4.8,
+  "reviewCount": 125,
+  "favoriteCount": 89,
+  "soldCount": 500,
+  "categoryName": "Handphone & Aksesoris",
   "scrapedAt": "2026-09-16T12:00:00.000Z"
 }
 ```
 
 ## Rate Limits & Best Practices
 
-- Max 50 products per page, max 50 pages per run (2500 products)
-- Built-in 1.5s delay between pages to avoid rate limiting
+- Max 60 products per page, max 50 pages per run (3000 products)
+- Built-in page load waiting to avoid rate limiting
 - If rate-limited (HTTP 429), the actor waits and retries automatically
 - Free Apify tier includes enough credits for ~5,000 products/month
 

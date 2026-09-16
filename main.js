@@ -62,7 +62,7 @@ function normalizeProduct(raw) {
   };
 }
 
-function extractProductsFromApiResponse(json, debugUrl = '') {
+function extractProductsFromApiResponse(json) {
   // Tokopedia GraphQL wraps responses in an array: [{ data: { ... } }]
   // Unwrap first so all path lookups work on the inner object
   if (Array.isArray(json)) {
@@ -75,14 +75,8 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
   const products = [];
 
   // Helper: normalize a raw product object from Tokopedia GraphQL
-  function fromRaw(p, isDebug = false) {
+  function fromRaw(p) {
     if (!p || (!p.name && !p.title)) return null;
-
-    // Debug: dump raw keys and sample on first product
-    if (isDebug) {
-      log.info(`RAW PRODUCT KEYS: ${JSON.stringify(Object.keys(p))}`);
-      log.info(`RAW PRODUCT SAMPLE: ${JSON.stringify(p).slice(0, 2000)}`);
-    }
 
     const price = p.price || {};
     const shop = p.shop || {};
@@ -236,13 +230,11 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       }
       // Log what keys we see for debugging
       log.info(`${vkey} keys: ${JSON.stringify(Object.keys(ace))}`);
-      if (ace.data) log.info(`${vkey}.data type: ${Array.isArray(ace.data) ? 'array[' + ace.data.length + ']' : typeof ace.data}, keys: ${Array.isArray(ace.data) ? 'N/A' : JSON.stringify(Object.keys(ace.data || {}))}`);
     }
   }
 
   // Shape 2: Generic scan — any key under json.data containing products
   const dataKeys = Object.keys(json?.data || {});
-  let debugDumped = false;
   for (const key of dataKeys) {
     const val = json.data[key];
     // Check various nesting patterns
@@ -251,11 +243,6 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       val?.products,
       val?.data,
     ].filter(Array.isArray);
-    // Debug: dump first product's raw keys from SearchProduct responses
-    if (!debugDumped && candidates.length > 0 && debugUrl?.includes('SearchProduct')) {
-      fromRaw(candidates[0][0], true);
-      debugDumped = true;
-    }
     for (const arr of candidates) {
       for (const p of arr) {
         const n = fromRaw(p);
@@ -278,12 +265,6 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       log.info(`Matched data_array shape: ${products.length} products`);
       return { products, source: 'data_array' };
     }
-  }
-
-  // Debug: dump top-level structure if nothing matched
-  if (debugUrl) {
-    const snippet = debugUrl.includes('SearchProduct') ? ' (SEARCH RESPONSE!)' : '';
-    log.info(`No products found in ${debugUrl.slice(0, 80)}${snippet}. Top keys: ${JSON.stringify(Object.keys(json || {}))}. Data keys: ${JSON.stringify(dataKeys)}`);
   }
 
   return { products: [], source: 'none' };
@@ -360,7 +341,7 @@ Actor.main(async () => {
       // Try to extract from captured API responses
       let allProducts = [];
       for (const { url, json } of capturedResponses) {
-        const { products, source } = extractProductsFromApiResponse(json, url);
+        const { products, source } = extractProductsFromApiResponse(json);
         if (products.length > 0) {
           log.info(`Found ${products.length} products from ${source}`);
           allProducts = products;
