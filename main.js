@@ -30,6 +30,11 @@ function buildSearchUrl(input) {
 }
 
 function normalizeProduct(raw) {
+  // If price is already a number, fromRaw() already normalized — just add scrapedAt
+  if (typeof raw.price === 'number' || (raw.price === null && raw.priceText)) {
+    return { ...raw, scrapedAt: raw.scrapedAt || new Date().toISOString() };
+  }
+  // Otherwise normalize from raw Tokopedia data (DOM fallback path)
   const price = raw.price || {};
   const shop = raw.shop || {};
   const stats = raw.stats || {};
@@ -99,15 +104,25 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       }
     }
 
-    // Parse imageUrl from various field names
-    const imageUrl = p.imageUrl || p.image || p.imgUrl || p.thumbnail || p.thumb || null;
+    // Parse imageUrl from various field names (Tokopedia uses mediaURL.image)
+    const mediaUrl = p.mediaURL || {};
+    const imageUrl = mediaUrl.image || p.imageUrl || p.image || p.imgUrl || p.thumbnail || p.thumb || null;
 
     // Parse discount
     let discount = null;
     if (typeof price === 'object' && price !== null) {
-      discount = price.discount || null;
+      // discountedValue is the actual discounted price amount
+      discount = price.discountedValue || null;
+      // If discount is a string like "69%", parse the number
+      if (!discount && price.discount) {
+        const pct = String(price.discount).replace(/[^0-9]/g, '');
+        if (pct) discount = parseInt(pct, 10) || null;
+      }
     }
-    if (discount === null && p.discount) discount = p.discount;
+    if (discount === null && p.discount) {
+      const pct = String(p.discount).replace(/[^0-9]/g, '');
+      if (pct) discount = parseInt(pct, 10) || null;
+    }
 
     // Parse discount percent
     let discountPercent = 0;
