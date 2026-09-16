@@ -70,30 +70,83 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
   const products = [];
 
   // Helper: normalize a raw product object from Tokopedia GraphQL
-  function fromRaw(p) {
+  function fromRaw(p, isDebug = false) {
     if (!p || (!p.name && !p.title)) return null;
+
+    // Debug: dump raw keys and sample on first product
+    if (isDebug) {
+      log.info(`RAW PRODUCT KEYS: ${JSON.stringify(Object.keys(p))}`);
+      log.info(`RAW PRODUCT SAMPLE: ${JSON.stringify(p).slice(0, 2000)}`);
+    }
+
     const price = p.price || {};
     const shop = p.shop || {};
     const stats = p.stats || {};
+
+    // Parse numeric price from various formats
+    let numericPrice = null;
+    if (typeof price === 'number') {
+      numericPrice = price;
+    } else if (typeof price === 'object' && price !== null) {
+      numericPrice = typeof price.value === 'number' ? price.value : null;
+    }
+    // Fallback: parse from priceText string "Rp24.900" → 24900
+    if (numericPrice === null) {
+      const priceStr = price.text || p.priceText || p.price || '';
+      if (typeof priceStr === 'string') {
+        const cleaned = priceStr.replace(/[^0-9]/g, '');
+        if (cleaned) numericPrice = parseInt(cleaned, 10) || null;
+      }
+    }
+
+    // Parse imageUrl from various field names
+    const imageUrl = p.imageUrl || p.image || p.imgUrl || p.thumbnail || p.thumb || null;
+
+    // Parse discount
+    let discount = null;
+    if (typeof price === 'object' && price !== null) {
+      discount = price.discount || null;
+    }
+    if (discount === null && p.discount) discount = p.discount;
+
+    // Parse discount percent
+    let discountPercent = 0;
+    if (typeof price === 'object' && price !== null) {
+      discountPercent = price.discountPercent || 0;
+    }
+    if (!discountPercent && p.discountPercent) discountPercent = p.discountPercent;
+
+    // Parse original price
+    let originalPrice = null;
+    if (typeof price === 'object' && price !== null) {
+      originalPrice = price.original || null;
+    }
+    if (originalPrice === null) originalPrice = p.originalPrice || null;
+    // Parse original price from string
+    if (typeof originalPrice === 'string') {
+      const cleaned = originalPrice.replace(/[^0-9]/g, '');
+      if (cleaned) originalPrice = parseInt(cleaned, 10) || originalPrice;
+    }
+
     return {
       id: p.id || p.productId || null,
       name: p.name || p.title || null,
-      price: typeof price.value === 'number' ? price.value : (p.priceValue || null),
-      priceText: price.text || p.priceText || null,
-      originalPrice: price.original || p.originalPrice || null,
-      discount: price.discount || p.discount || null,
-      discountPercent: price.discountPercent || p.discountPercent || 0,
-      currency: price.currency || 'IDR',
-      imageUrl: p.imageUrl || p.image || null,
+      price: numericPrice,
+      priceText: (typeof price === 'object' ? price.text : null) || p.priceText || null,
+      originalPrice: originalPrice,
+      discount: discount,
+      discountPercent: discountPercent,
+      currency: (typeof price === 'object' ? price.currency : null) || 'IDR',
+      imageUrl: imageUrl,
       url: p.url || p.link || null,
       shopId: shop.id || p.shopId || null,
       shopName: shop.name || p.shopName || null,
       shopCity: shop.city || p.shopCity || null,
       isOfficialStore: shop.isOfficial || p.isOfficial || false,
       isPowerMerchant: shop.isPowerBadge || p.isPowerBadge || false,
-      reviewCount: stats.countReview || p.reviewCount || 0,
-      favoriteCount: stats.countFavorite || p.favoriteCount || 0,
-      soldCount: p.soldCount || p.countSold || null,
+      reviewCount: stats.countReview || stats.reviewCount || p.reviewCount || 0,
+      favoriteCount: stats.countFavorite || stats.favoriteCount || p.favoriteCount || 0,
+      soldCount: p.soldCount || p.countSold || stats.countSold || null,
       categoryName: (p.category && p.category.name) || p.categoryName || null,
       scrapedAt: new Date().toISOString(),
     };
@@ -145,6 +198,7 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
 
   // Shape 2: Generic scan — any key under json.data containing products
   const dataKeys = Object.keys(json?.data || {});
+  let debugDumped = false;
   for (const key of dataKeys) {
     const val = json.data[key];
     // Check various nesting patterns
@@ -153,13 +207,12 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       val?.products,
       val?.data,
     ].filter(Array.isArray);
+    // Debug: dump first product's raw keys from SearchProduct responses
+    if (!debugDumped && candidates.length > 0 && debugUrl?.includes('SearchProduct')) {
+      fromRaw(candidates[0][0], true);
+      debugDumped = true;
+    }
     for (const arr of candidates) {
-      // Debug: dump first product's raw keys
-      if (arr.length > 0 && debugUrl?.includes('SearchProduct')) {
-        const sample = arr[0];
-        log.info(`RAW PRODUCT KEYS: ${JSON.stringify(Object.keys(sample))}`);
-        log.info(`RAW PRODUCT SAMPLE: ${JSON.stringify(sample).slice(0, 1500)}`);
-      }
       for (const p of arr) {
         const n = fromRaw(p);
         if (n) products.push(n);
@@ -219,6 +272,13 @@ Actor.main(async () => {
       const currentPage = request.userData.page || 1;
       log.info(`Processing page ${currentPage}...`);
 
+      // Memory optimization: block images, fonts, media to reduce memory usage
+      await page.route('**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,mp4,webm}', route => route.abort());
+      await page.route('**/ecs7-p.tokopedia.net/**', route => route.abort());
+      await page.route('**/images.tokopedia.net/**', route => route.abort());
+      await page.route('**/*.google-analytics.com/**', route => route.abort());
+      await page.route('**/doubleclick.net/**', route => route.abort());
+
       // Intercept all fetch/XHR responses
       const capturedResponses = [];
       page.on('response', async (response) => {
@@ -241,25 +301,21 @@ Actor.main(async () => {
         }
       });
 
-      // Navigate
-      await page.goto(request.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+      // Navigate with lighter load strategy
+      await page.goto(request.url, { waitUntil: 'commit', timeout: 30000 });
 
       // Wait for products to load — try multiple strategies
       log.info('Waiting for products to load...');
 
-      // Wait for either product cards OR API responses
+      // Wait for either product cards OR API responses (shorter timeout)
       try {
         await Promise.race([
-          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 20000 }),
-          new Promise(resolve => setTimeout(resolve, 25000)),
+          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 15000 }),
+          new Promise(resolve => setTimeout(resolve, 15000)),
         ]);
       } catch { /* timeout ok */ }
 
-      // Extra wait for lazy loading
-      await page.waitForTimeout(5000);
-
-      // Also scroll down to trigger lazy load
-      await page.evaluate(() => window.scrollBy(0, 2000));
+      // Extra wait for lazy loading (reduced)
       await page.waitForTimeout(3000);
 
       log.info(`Captured ${capturedResponses.length} API responses`);
