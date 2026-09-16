@@ -128,6 +128,11 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
     let discountPercent = 0;
     if (typeof price === 'object' && price !== null) {
       discountPercent = price.discountPercent || 0;
+      // Parse from string like "69%"
+      if (!discountPercent && price.discount) {
+        const pct = String(price.discount).replace(/[^0-9]/g, '');
+        if (pct) discountPercent = parseInt(pct, 10) || 0;
+      }
     }
     if (!discountPercent && p.discountPercent) discountPercent = p.discountPercent;
 
@@ -142,6 +147,25 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       const cleaned = originalPrice.replace(/[^0-9]/g, '');
       if (cleaned) originalPrice = parseInt(cleaned, 10) || originalPrice;
     }
+
+    // Computed discount fallback: originalPrice - price
+    if (discount === null && numericPrice && originalPrice && typeof originalPrice === 'number') {
+      discount = originalPrice - numericPrice;
+    }
+
+    // Extract rating
+    const rating = p.rating || {};
+    const avgRating = typeof rating === 'number' ? rating : (rating.average || rating.count || 0);
+
+    // Extract soldCount from various locations
+    const soldCount = p.soldCount || p.countSold || p.meta?.countSold || null;
+
+    // Extract reviewCount from rating object
+    const reviewCount = stats.countReview || stats.reviewCount || rating.countReview || p.reviewCount || 0;
+
+    // Extract favoriteCount from wishlist
+    const wishlist = p.wishlist || {};
+    const favoriteCount = stats.countFavorite || stats.favoriteCount || (typeof wishlist === 'number' ? wishlist : wishlist.count) || p.favoriteCount || 0;
 
     return {
       id: p.id || p.productId || null,
@@ -159,9 +183,10 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       shopCity: shop.city || p.shopCity || null,
       isOfficialStore: shop.isOfficial || p.isOfficial || false,
       isPowerMerchant: shop.isPowerBadge || p.isPowerBadge || false,
-      reviewCount: stats.countReview || stats.reviewCount || p.reviewCount || 0,
-      favoriteCount: stats.countFavorite || stats.favoriteCount || p.favoriteCount || 0,
-      soldCount: p.soldCount || p.countSold || stats.countSold || null,
+      rating: avgRating,
+      reviewCount: reviewCount,
+      favoriteCount: favoriteCount,
+      soldCount: soldCount,
       categoryName: (p.category && p.category.name) || p.categoryName || null,
       scrapedAt: new Date().toISOString(),
     };
