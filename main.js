@@ -135,6 +135,10 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       }
     }
     if (!discountPercent && p.discountPercent) discountPercent = p.discountPercent;
+    // Compute from discount amount if still 0
+    if (!discountPercent && discount && numericPrice && numericPrice > 0) {
+      discountPercent = Math.round((discount / (discount + numericPrice)) * 100);
+    }
 
     // Parse original price
     let originalPrice = null;
