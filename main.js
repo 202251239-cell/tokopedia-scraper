@@ -272,13 +272,6 @@ Actor.main(async () => {
       const currentPage = request.userData.page || 1;
       log.info(`Processing page ${currentPage}...`);
 
-      // Memory optimization: block images, fonts, media to reduce memory usage
-      await page.route('**/*.{png,jpg,jpeg,gif,webp,svg,woff,woff2,ttf,mp4,webm}', route => route.abort());
-      await page.route('**/ecs7-p.tokopedia.net/**', route => route.abort());
-      await page.route('**/images.tokopedia.net/**', route => route.abort());
-      await page.route('**/*.google-analytics.com/**', route => route.abort());
-      await page.route('**/doubleclick.net/**', route => route.abort());
-
       // Intercept all fetch/XHR responses
       const capturedResponses = [];
       page.on('response', async (response) => {
@@ -301,21 +294,21 @@ Actor.main(async () => {
         }
       });
 
-      // Navigate with lighter load strategy
-      await page.goto(request.url, { waitUntil: 'commit', timeout: 30000 });
+      // Navigate
+      await page.goto(request.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
       // Wait for products to load — try multiple strategies
       log.info('Waiting for products to load...');
 
-      // Wait for either product cards OR API responses (shorter timeout)
+      // Wait for either product cards OR API responses
       try {
         await Promise.race([
-          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 15000 }),
-          new Promise(resolve => setTimeout(resolve, 15000)),
+          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 20000 }),
+          new Promise(resolve => setTimeout(resolve, 20000)),
         ]);
       } catch { /* timeout ok */ }
 
-      // Extra wait for lazy loading (reduced)
+      // Extra wait for lazy loading
       await page.waitForTimeout(3000);
 
       log.info(`Captured ${capturedResponses.length} API responses`);
@@ -386,6 +379,9 @@ Actor.main(async () => {
       }
 
       log.info(`Page ${currentPage}: ${allProducts.length} products (total: ${totalScraped})`);
+
+      // Free memory by closing the page after extraction
+      try { await page.close(); } catch {}
     },
 
     async failedRequestHandler({ request }, error) {
