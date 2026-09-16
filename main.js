@@ -154,6 +154,12 @@ function extractProductsFromApiResponse(json, debugUrl = '') {
       val?.data,
     ].filter(Array.isArray);
     for (const arr of candidates) {
+      // Debug: dump first product's raw keys
+      if (arr.length > 0 && debugUrl?.includes('SearchProduct')) {
+        const sample = arr[0];
+        log.info(`RAW PRODUCT KEYS: ${JSON.stringify(Object.keys(sample))}`);
+        log.info(`RAW PRODUCT SAMPLE: ${JSON.stringify(sample).slice(0, 1500)}`);
+      }
       for (const p of arr) {
         const n = fromRaw(p);
         if (n) products.push(n);
