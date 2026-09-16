@@ -1,8 +1,8 @@
 /**
- * Tokopedia Product Search Scraper v2
+ * Tokopedia Product Search Scraper v3
  *
- * PlaywrightCrawler with screenshot debugging + robust extraction.
- * Uses __NEXT_DATA__ JSON (primary) and DOM scraping (fallback).
+ * Intercepts XHR/fetch responses from Tokopedia's internal API
+ * instead of parsing DOM. Much more reliable.
  */
 
 import { Actor } from 'apify';
@@ -15,16 +15,12 @@ import { log } from 'crawlee';
 
 function buildSearchUrl(input) {
   const { searchTerms, sortBy, minPrice, maxPrice, officialStore, location } = input;
-
-  // Use plain string concat — URLSearchParams double-encodes
   let url = `https://www.tokopedia.com/search?st=product&q=${encodeURIComponent(searchTerms)}`;
 
   const sortMap = {
     newest: '5', price_high: '4', price_low: '3', popular: '2', reviews: '1',
   };
-  if (sortBy && sortBy !== 'relevance' && sortMap[sortBy]) {
-    url += `&ob=${sortMap[sortBy]}`;
-  }
+  if (sortBy && sortBy !== 'relevance' && sortMap[sortBy]) url += `&ob=${sortMap[sortBy]}`;
   if (minPrice && minPrice > 0) url += `&minprice=${minPrice}`;
   if (maxPrice && maxPrice > 0) url += `&maxprice=${maxPrice}`;
   if (officialStore) url += `&official=1`;
@@ -37,7 +33,6 @@ function normalizeProduct(raw) {
   const price = raw.price || {};
   const shop = raw.shop || {};
   const stats = raw.stats || {};
-
   return {
     id: raw.id || raw.productId || null,
     name: raw.name || raw.title || null,
@@ -62,6 +57,79 @@ function normalizeProduct(raw) {
   };
 }
 
+function extractProductsFromApiResponse(json) {
+  // Try all known response shapes
+  const products = [];
+
+  // Shape 1: { data: { ace_search_product_v4: { data: { products: [...] } } } }
+  const ace = json?.data?.ace_search_product_v4?.data?.products;
+  if (ace && Array.isArray(ace)) {
+    for (const p of ace) {
+      products.push({
+        id: p.id,
+        name: p.name,
+        price: p.price?.value || null,
+        priceText: p.price?.text || null,
+        originalPrice: p.price?.original || null,
+        discount: p.price?.discount || null,
+        discountPercent: p.price?.discountPercent || 0,
+        imageUrl: p.imageUrl || null,
+        url: p.url || null,
+        shopName: p.shop?.name || null,
+        shopCity: p.shop?.city || null,
+        isOfficialStore: p.shop?.isOfficial || false,
+        isPowerMerchant: p.shop?.isPowerBadge || false,
+        reviewCount: p.stats?.countReview || 0,
+        favoriteCount: p.stats?.countFavorite || 0,
+        categoryName: p.category?.name || null,
+      });
+    }
+    if (products.length > 0) return { products, source: 'ace_gql' };
+  }
+
+  // Shape 2: { data: { ... products embedded in response } }
+  const dataKeys = Object.keys(json?.data || {});
+  for (const key of dataKeys) {
+    const val = json.data[key];
+    if (val?.data?.products && Array.isArray(val.data.products)) {
+      for (const p of val.data.products) {
+        products.push({
+          id: p.id,
+          name: p.name,
+          price: p.price?.value || null,
+          priceText: p.price?.text || null,
+          imageUrl: p.imageUrl || null,
+          url: p.url || null,
+          shopName: p.shop?.name || null,
+          reviewCount: p.stats?.countReview || 0,
+        });
+      }
+      if (products.length > 0) return { products, source: key };
+    }
+  }
+
+  // Shape 3: data is array of products directly
+  if (Array.isArray(json?.data)) {
+    for (const p of json.data) {
+      if (p.name && (p.price || p.url)) {
+        products.push({
+          id: p.id || p.productId || null,
+          name: p.name,
+          price: p.price?.value || p.priceValue || null,
+          priceText: p.price?.text || null,
+          imageUrl: p.imageUrl || p.image || null,
+          url: p.url || p.link || null,
+          shopName: p.shop?.name || p.shopName || null,
+          reviewCount: p.stats?.countReview || p.reviewCount || 0,
+        });
+      }
+    }
+    if (products.length > 0) return { products, source: 'data_array' };
+  }
+
+  return { products: [], source: 'none' };
+}
+
 /* ──────────────────────────────────────────────
    Main Actor
    ────────────────────────────────────────────── */
@@ -79,164 +147,119 @@ Actor.main(async () => {
   log.info(`Base URL: ${baseUrl}`);
 
   let totalScraped = 0;
+  const apiResponses = [];
 
   const crawler = new PlaywrightCrawler({
     maxConcurrency: 1,
     requestHandlerTimeoutSecs: 60,
-    // Reduce memory: disable screenshots in production, enable for debug
-    headless: true,
 
     async requestHandler({ page, request }) {
       const currentPage = request.userData.page || 1;
       log.info(`Processing page ${currentPage}...`);
 
-      // Navigate with longer wait
-      await page.goto(request.url, { waitUntil: 'networkidle', timeout: 30000 });
+      // Intercept all fetch/XHR responses
+      const capturedResponses = [];
+      page.on('response', async (response) => {
+        const url = response.url();
+        const ct = response.headers()['content-type'] || '';
 
-      // Wait for content to settle
+        // Capture JSON responses from Tokopedia's API endpoints
+        if (ct.includes('json') && (
+          url.includes('gql.tokopedia.com') ||
+          url.includes('ace_search') ||
+          url.includes('SearchProduct') ||
+          url.includes('/graphql/') ||
+          url.includes('gql')
+        )) {
+          try {
+            const json = await response.json();
+            capturedResponses.push({ url, json });
+            log.info(`Captured API response: ${url.slice(0, 100)}...`);
+          } catch { /* not json */ }
+        }
+      });
+
+      // Navigate
+      await page.goto(request.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
+
+      // Wait for products to load — try multiple strategies
+      log.info('Waiting for products to load...');
+
+      // Wait for either product cards OR API responses
+      try {
+        await Promise.race([
+          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 20000 }),
+          new Promise(resolve => setTimeout(resolve, 25000)),
+        ]);
+      } catch { /* timeout ok */ }
+
+      // Extra wait for lazy loading
+      await page.waitForTimeout(5000);
+
+      // Also scroll down to trigger lazy load
+      await page.evaluate(() => window.scrollBy(0, 2000));
       await page.waitForTimeout(3000);
 
-      // Debug: save screenshot
-      const ssPath = `page-${currentPage}.png`;
-      await page.screenshot({ path: ssPath, fullPage: false });
-      log.info(`Screenshot saved: ${ssPath}`);
+      log.info(`Captured ${capturedResponses.length} API responses`);
 
-      // Debug: check page title and URL
-      const title = await page.title();
-      const currentUrl = page.url();
-      log.info(`Page title: "${title}" | URL: ${currentUrl}`);
-
-      // Check if we got captcha/challenge
-      const bodyText = await page.evaluate(() => document.body?.innerText?.slice(0, 500) || '');
-      log.info(`Body preview: ${bodyText.slice(0, 200)}`);
-
-      // Strategy 1: Extract from __NEXT_DATA__
-      let products = [];
-      try {
-        const nextData = await page.evaluate(() => {
-          const el = document.querySelector('#__NEXT_DATA__');
-          if (el) {
-            try { return JSON.parse(el.textContent); } catch { return null; }
-          }
-          // Also try window.__NEXT_DATA__
-          if (window.__NEXT_DATA__) return window.__NEXT_DATA__;
-          return null;
-        });
-
-        if (nextData) {
-          log.info(`__NEXT_DATA__ found, keys: ${JSON.stringify(Object.keys(nextData?.props || {}))}`);
-
-          // Try multiple paths where Tokopedia might put product data
-          const candidates = [
-            nextData?.props?.initialState?.products,
-            nextData?.props?.initialProps?.pageProps?.tabsState?.data?.products,
-            nextData?.props?.pageProps?.products,
-            nextData?.props?.initialState?.search?.products,
-          ];
-
-          for (const c of candidates) {
-            if (Array.isArray(c) && c.length > 0) {
-              products = c;
-              log.info(`NEXT_DATA path found ${products.length} products`);
-              break;
-            }
-          }
-
-          // If no array found, dump keys for debugging
-          if (products.length === 0) {
-            const stateKeys = Object.keys(nextData?.props?.initialState || {});
-            const pagePropsKeys = Object.keys(nextData?.props?.initialProps?.pageProps || {});
-            log.info(`initialState keys: ${JSON.stringify(stateKeys)}`);
-            log.info(`pageProps keys: ${JSON.stringify(pagePropsKeys)}`);
-          }
-        } else {
-          log.info('No __NEXT_DATA__ found on page');
+      // Try to extract from captured API responses
+      let allProducts = [];
+      for (const { url, json } of capturedResponses) {
+        const { products, source } = extractProductsFromApiResponse(json);
+        if (products.length > 0) {
+          log.info(`Found ${products.length} products from ${source}`);
+          allProducts = products;
+          break;
         }
-      } catch (err) {
-        log.warning(`Strategy 1 error: ${err.message}`);
       }
 
-      // Strategy 2: DOM extraction with flexible selectors
-      if (products.length === 0) {
+      // Fallback: extract from __NEXT_DATA__ or DOM
+      if (allProducts.length === 0) {
+        log.info('No API products, trying DOM extraction...');
+
+        // Try __NEXT_DATA__ one more time
         try {
-          products = await page.evaluate(() => {
+          const nextData = await page.evaluate(() => {
+            const el = document.querySelector('#__NEXT_DATA__');
+            if (el) return JSON.parse(el.textContent);
+            return window.__NEXT_DATA__ || null;
+          });
+          if (nextData) {
+            // Dump structure for debugging
+            const keys = Object.keys(nextData?.props || {});
+            log.info(`NEXT_DATA props keys: ${JSON.stringify(keys)}`);
+          }
+        } catch {}
+
+        // DOM extraction with very flexible selectors
+        try {
+          allProducts = await page.evaluate(() => {
             const results = [];
-
-            // Try multiple selector strategies
-            const selectors = [
-              '[data-testid="master-product-card"]',
-              '[data-testid="divSRPContentProducts"] > div > div > div',
-              'a[data-testid="linkProductCard"]',
-              'div[class*="product-card"]',
-              'div[class*="css-"][class*="product"]',
-            ];
-
-            let cards = [];
-            for (const sel of selectors) {
-              cards = document.querySelectorAll(sel);
-              if (cards.length > 0) break;
+            // Find all anchor elements that link to products
+            const links = document.querySelectorAll('a[href*="/product/"]');
+            for (const link of links) {
+              const card = link.closest('div') || link;
+              const name = link.getAttribute('title')
+                || card.querySelector('span')?.textContent?.trim();
+              const priceText = card.querySelector('span[class*="price"], div[class*="price"]')?.textContent?.trim();
+              if (name && name.length > 5) {
+                results.push({
+                  name,
+                  priceText: priceText || null,
+                  url: link.href,
+                });
+              }
             }
-
-            // If no cards found, try getting all links that look like products
-            if (cards.length === 0) {
-              const allLinks = document.querySelectorAll('a[href*="/product/"]');
-              cards = allLinks;
-            }
-
-            for (const card of cards) {
-              // Try multiple selectors for each field
-              const nameEl = card.querySelector('[data-testid="linkProductName"]')
-                || card.querySelector('[data-testid="spnSRPProdName"]')
-                || card.querySelector('span[class*="product-name"]')
-                || card.querySelector('h3, h2');
-
-              const priceEl = card.querySelector('[data-testid="linkProductPrice"]')
-                || card.querySelector('[data-testid="spnSRPProdPrice"]')
-                || card.querySelector('span[class*="price"]')
-                || card.querySelector('div[class*="price"]');
-
-              const linkEl = card.closest('a') || card.querySelector('a[href*="tokopedia.com"]');
-
-              const imgEl = card.querySelector('img[src*="tokopedia"]') || card.querySelector('img');
-
-              const shopEl = card.querySelector('[data-testid="shopName"]')
-                || card.querySelector('[data-testid="spnSRPProdInfoShopName"]')
-                || card.querySelector('span[class*="shop"]');
-
-              const name = nameEl?.textContent?.trim();
-              if (!name) continue;
-
-              const priceText = priceEl?.textContent?.trim() || '';
-              const priceNum = parseInt(priceText.replace(/[^0-9]/g, ''), 10) || null;
-
-              results.push({
-                name,
-                price: priceNum,
-                priceText,
-                url: linkEl?.href || null,
-                imageUrl: imgEl?.src || null,
-                shopName: shopEl?.textContent?.trim() || null,
-              });
-            }
-
             return results;
           });
-          log.info(`Strategy 2 (DOM): found ${products.length} products`);
+          log.info(`DOM fallback: ${allProducts.length} products`);
         } catch (err) {
-          log.warning(`Strategy 2 error: ${err.message}`);
+          log.warning(`DOM fallback error: ${err.message}`);
         }
-      }
-
-      // Strategy 3: Extract raw HTML for external parsing
-      if (products.length === 0) {
-        const html = await page.content();
-        const { writeFileSync } = await import('fs');
-        writeFileSync(`page-${currentPage}-raw.html`, html);
-        log.info(`Saved raw HTML for debugging (${html.length} bytes)`);
       }
 
       // Normalize and push
-      for (const raw of products) {
+      for (const raw of allProducts) {
         const normalized = normalizeProduct(raw);
         if (normalized.name) {
           await Actor.pushData(normalized);
@@ -244,7 +267,7 @@ Actor.main(async () => {
         }
       }
 
-      log.info(`Page ${currentPage}: ${products.length} products (total: ${totalScraped})`);
+      log.info(`Page ${currentPage}: ${allProducts.length} products (total: ${totalScraped})`);
     },
 
     async failedRequestHandler({ request }, error) {
@@ -252,7 +275,6 @@ Actor.main(async () => {
     },
   });
 
-  // Build request list
   const requests = [];
   for (let page = 1; page <= maxPages; page++) {
     const url = page === 1 ? baseUrl : `${baseUrl}&page=${page}`;
@@ -261,7 +283,6 @@ Actor.main(async () => {
 
   await crawler.run(requests);
 
-  // Push summary
   await Actor.pushData({
     _metadata: {
       searchTerms: input.searchTerms,
