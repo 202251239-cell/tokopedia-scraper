@@ -5,6 +5,7 @@
     "description": "Scrape Tokopedia product search results into clean JSON: price, original price, discount %, image URL, shop name, stock, and category. No API key needed.",
     "version": "0.0",
     "buildTag": "latest",
+    "defaultMemoryMbytes": 2048,
     "output": "./output_schema.json",
     "storages": {
         "dataset": "./dataset_schema.json",
