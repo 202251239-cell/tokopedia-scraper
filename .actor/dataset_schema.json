@@ -1,0 +1,258 @@
+{
+    "actorSpecification": 1,
+    "fields": {
+        "type": "object",
+        "properties": {
+            "id": {
+                "type": "string",
+                "title": "Product ID",
+                "description": "Tokopedia product ID.",
+                "example": "6699703868"
+            },
+            "name": {
+                "type": "string",
+                "title": "Product name",
+                "description": "Full product title as shown in search results.",
+                "example": "QKZ AK6 Upgrade Earphone Bass Sport Gaming Headset"
+            },
+            "price": {
+                "type": "number",
+                "title": "Price (IDR)",
+                "description": "Current selling price in Indonesian rupiah. Integer, no separators.",
+                "example": 24900
+            },
+            "priceText": {
+                "type": "string",
+                "title": "Price (formatted)",
+                "description": "Display price exactly as Tokopedia renders it.",
+                "example": "Rp24.900"
+            },
+            "originalPrice": {
+                "type": ["number", "null"],
+                "title": "Original price (IDR)",
+                "description": "Pre-discount price. Null when the product has no discount.",
+                "example": 64900
+            },
+            "discount": {
+                "type": ["number", "null"],
+                "title": "Discount (IDR)",
+                "description": "Absolute discount in rupiah, always equal to originalPrice - price. Null when there is no discount.",
+                "example": 40000
+            },
+            "discountPercent": {
+                "type": "number",
+                "title": "Discount %",
+                "description": "Discount percentage, 0 when the product has no discount.",
+                "example": 62
+            },
+            "currency": {
+                "type": "string",
+                "title": "Currency",
+                "description": "ISO currency code. Always IDR for Tokopedia.",
+                "example": "IDR"
+            },
+            "imageUrl": {
+                "type": "string",
+                "title": "Image URL",
+                "description": "Main product image. Tokopedia signs these URLs, so download or mirror them soon after scraping if you need them long-term.",
+                "example": "https://p16-images-sign-sg.tokopedia-static.net/..."
+            },
+            "url": {
+                "type": "string",
+                "title": "Product URL",
+                "description": "Canonical product page URL on tokopedia.com.",
+                "example": "https://www.tokopedia.com/kupingsensi/qkz-ak6-headset..."
+            },
+            "shopId": {
+                "type": "string",
+                "title": "Shop ID",
+                "description": "Tokopedia shop ID.",
+                "example": "10426449"
+            },
+            "shopName": {
+                "type": "string",
+                "title": "Shop name",
+                "description": "Display name of the seller.",
+                "example": "Kuping Sensi"
+            },
+            "shopCity": {
+                "type": ["string", "null"],
+                "title": "Shop city",
+                "description": "Seller's registered city, useful for shipping and regional analysis.",
+                "example": "Jakarta Barat"
+            },
+            "isOfficialStore": {
+                "type": "boolean",
+                "title": "Official store",
+                "description": "True when the seller is an official/brand store on Tokopedia."
+            },
+            "isPowerMerchant": {
+                "type": "boolean",
+                "title": "Power merchant",
+                "description": "True when the seller holds Tokopedia's Power Merchant badge."
+            },
+            "rating": {
+                "type": "number",
+                "title": "Rating",
+                "description": "Average product rating. 0 when the product has no ratings.",
+                "example": 4.9
+            },
+            "reviewCount": {
+                "type": "number",
+                "title": "Review count",
+                "description": "Number of product reviews. 0 when the product has no reviews.",
+                "example": 128
+            },
+            "favoriteCount": {
+                "type": "number",
+                "title": "Favorite count",
+                "description": "How many users wishlisted the product. 0 when unavailable."
+            },
+            "soldCount": {
+                "type": ["number", "null"],
+                "title": "Sold count",
+                "description": "Units sold as shown on the listing. Null when the shop does not display it."
+            },
+            "categoryName": {
+                "type": ["string", "null"],
+                "title": "Category",
+                "description": "Tokopedia category the product belongs to.",
+                "example": "Komputer & Laptop"
+            },
+            "scrapedAt": {
+                "type": "string",
+                "title": "Scraped at",
+                "description": "ISO 8601 timestamp of when the item was extracted.",
+                "example": "2026-09-17T00:50:34.458Z"
+            }
+        }
+    },
+    "views": {
+        "overview": {
+            "title": "Overview",
+            "description": "One row per product: what it is, what it costs, and where to buy it.",
+            "transformation": {
+                "fields": [
+                    "imageUrl",
+                    "name",
+                    "price",
+                    "originalPrice",
+                    "discountPercent",
+                    "shopName",
+                    "url"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "imageUrl": {
+                        "label": "Image",
+                        "format": "image"
+                    },
+                    "name": {
+                        "label": "Product",
+                        "format": "text"
+                    },
+                    "price": {
+                        "label": "Price (IDR)",
+                        "format": "number"
+                    },
+                    "originalPrice": {
+                        "label": "Was (IDR)",
+                        "format": "number"
+                    },
+                    "discountPercent": {
+                        "label": "Discount %",
+                        "format": "number"
+                    },
+                    "shopName": {
+                        "label": "Shop",
+                        "format": "text"
+                    },
+                    "url": {
+                        "label": "Link",
+                        "format": "link"
+                    }
+                }
+            }
+        },
+        "pricing": {
+            "title": "Pricing analysis",
+            "description": "Everything needed to compare price levels and discount depth across shops.",
+            "transformation": {
+                "fields": [
+                    "name",
+                    "price",
+                    "originalPrice",
+                    "discount",
+                    "discountPercent",
+                    "currency",
+                    "shopName",
+                    "shopCity"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "price": {
+                        "label": "Price",
+                        "format": "number"
+                    },
+                    "originalPrice": {
+                        "label": "Original",
+                        "format": "number"
+                    },
+                    "discount": {
+                        "label": "Discount (IDR)",
+                        "format": "number"
+                    },
+                    "discountPercent": {
+                        "label": "Discount %",
+                        "format": "number"
+                    }
+                }
+            }
+        },
+        "sellers": {
+            "title": "Sellers",
+            "description": "Shop-level view: who is selling, where from, and how established they are.",
+            "transformation": {
+                "fields": [
+                    "shopName",
+                    "shopCity",
+                    "isOfficialStore",
+                    "isPowerMerchant",
+                    "rating",
+                    "reviewCount",
+                    "soldCount",
+                    "name"
+                ]
+            },
+            "display": {
+                "component": "table",
+                "properties": {
+                    "isOfficialStore": {
+                        "label": "Official",
+                        "format": "boolean"
+                    },
+                    "isPowerMerchant": {
+                        "label": "Power merchant",
+                        "format": "boolean"
+                    },
+                    "rating": {
+                        "label": "Rating",
+                        "format": "number"
+                    },
+                    "reviewCount": {
+                        "label": "Reviews",
+                        "format": "number"
+                    },
+                    "soldCount": {
+                        "label": "Sold",
+                        "format": "number"
+                    }
+                }
+            }
+        }
+    }
+}

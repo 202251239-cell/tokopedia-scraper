@@ -1,0 +1,19 @@
+{
+    "actorOutputSchemaVersion": 1,
+    "title": "Output schema of Tokopedia Scraper",
+    "description": "Tokopedia Scraper writes one item per product into the default dataset and a run summary into the default key-value store.",
+    "properties": {
+        "products": {
+            "type": "string",
+            "title": "Products",
+            "description": "All scraped Tokopedia products. One dataset item per product, with price, discount, image, and shop fields.",
+            "template": "{{links.apiDefaultDatasetUrl}}/items"
+        },
+        "summary": {
+            "type": "string",
+            "title": "Run summary",
+            "description": "Search terms used, total products scraped, number of pages processed, and completion time.",
+            "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/SUMMARY"
+        }
+    }
+}

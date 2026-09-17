@@ -1,0 +1,12 @@
+{
+    "actorKeyValueStoreSchemaVersion": 1,
+    "title": "Tokopedia Scraper key-value store",
+    "description": "Besides the platform-managed records, Tokopedia Scraper writes a single SUMMARY record describing the run.",
+    "collections": {
+        "summary": {
+            "title": "Run summary",
+            "description": "One JSON record per run: search terms used, total products scraped, pages processed, and completion time. Stored under the SUMMARY key and deliberately kept out of the dataset so it is never billed as a product.",
+            "key": "SUMMARY"
+        }
+    }
+}

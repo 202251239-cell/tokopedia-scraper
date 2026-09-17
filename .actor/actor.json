@@ -1,0 +1,13 @@
+{
+    "actorSpecification": 1,
+    "name": "tokopedia-scraper",
+    "title": "Tokopedia Scraper",
+    "description": "Scrape Tokopedia product search results into clean JSON: price, original price, discount %, image URL, shop name, stock, and category. No API key needed.",
+    "version": "0.0",
+    "buildTag": "latest",
+    "output": "./output_schema.json",
+    "storages": {
+        "dataset": "./dataset_schema.json",
+        "keyValueStore": "./key_value_store_schema.json"
+    }
+}
