@@ -327,6 +327,20 @@ Actor.main(async () => {
               if (products.length > 0) {
                 allProducts = products;
                 log.info(`Found ${products.length} products from ${source}`);
+                // Field-discovery aid: with DEBUG_DUMP=1 the first raw product node
+                // is written to the key-value store so new output fields can be
+                // mapped against the real payload instead of guessed. Off by
+                // default, and KV (not the dataset) so it is never billed.
+                if (process.env.DEBUG_DUMP === '1') {
+                  const raw = json?.data?.searchProductV5?.[0];
+                  if (raw) {
+                    await Actor.setValue('DEBUG_RAW', {
+                      topLevelKeys: Object.keys(raw),
+                      raw,
+                    });
+                    log.info('DEBUG_DUMP: wrote DEBUG_RAW to key-value store');
+                  }
+                }
               }
             }
           } catch { /* not json */ }
