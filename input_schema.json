@@ -14,7 +14,7 @@
     },
     "maxPages": {
       "title": "Max Pages",
-      "description": "Maximum number of pages to scrape. Each page has up to 50 products. Max 50 pages.",
+      "description": "Number of pages to scrape. Each page yields up to ~60 products. Tokopedia typically caps results at ~60 unique products per query, so pages >1 may return duplicates (automatically deduped).",
       "type": "integer",
       "editor": "number",
       "minimum": 1,

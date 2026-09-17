@@ -318,12 +318,14 @@ Actor.main(async () => {
   }
 
   const maxPages = Math.min(input.maxPages || 1, 50);
+  const minRating = parseFloat(input.minRating) || 0;
   const baseUrl = buildSearchUrl(input);
 
-  log.info(`Starting Tokopedia scrape: "${input.searchTerms}" (${maxPages} pages)`);
+  log.info(`Starting Tokopedia scrape: "${input.searchTerms}" (${maxPages} pages, minRating=${minRating})`);
   log.info(`Base URL: ${baseUrl}`);
 
   let totalScraped = 0;
+  const seenIds = new Set(); // dedup across pages — Tokopedia often returns identical products
 
   const crawler = new PlaywrightCrawler({
     maxConcurrency: 1,
@@ -440,16 +442,26 @@ Actor.main(async () => {
         }
       }
 
-      // Normalize and push
+      // Normalize, dedup, filter, and push
+      let pushedThisPage = 0;
       for (const raw of allProducts) {
         const normalized = normalizeProduct(raw);
-        if (normalized.name) {
-          await Actor.pushData(normalized);
-          totalScraped++;
-        }
+        if (!normalized.name) continue;
+
+        // Dedup by product ID or URL (across pages)
+        const dedupKey = normalized.id || normalized.url;
+        if (dedupKey && seenIds.has(dedupKey)) continue;
+        if (dedupKey) seenIds.add(dedupKey);
+
+        // Filter by minRating (0 = no filter)
+        if (minRating > 0 && (normalized.rating || 0) < minRating) continue;
+
+        await Actor.pushData(normalized);
+        totalScraped++;
+        pushedThisPage++;
       }
 
-      log.info(`Page ${currentPage}: ${allProducts.length} products (total: ${totalScraped})`);
+      log.info(`Page ${currentPage}: ${allProducts.length} raw, ${pushedThisPage} pushed (total: ${totalScraped})`);
 
       // Free memory by closing the page after extraction
       try { await page.close(); } catch {}
