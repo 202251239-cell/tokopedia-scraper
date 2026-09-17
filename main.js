@@ -364,31 +364,6 @@ Actor.main(async () => {
               if (products.length > 0) {
                 allProducts = products;
                 log.info(`Found ${products.length} products from ${source}`);
-                // Field-discovery aid: with DEBUG_DUMP=1 the first raw product node
-                // is written to the key-value store so new output fields can be
-                // mapped against the real payload instead of guessed. Off by
-                // default, and KV (not the dataset) so it is never billed.
-                if (process.env.DEBUG_DUMP === '1') {
-                  // GraphQL responses are wrapped in an array: [{ data: {...} }].
-                  // Dump SHAPES, not assumptions - a previous attempt hardcoded a
-                  // path and silently produced found=false.
-                  const root = Array.isArray(json) ? json[0] : json;
-                  const data = (root && root.data) || root || {};
-                  const shapes = {};
-                  for (const k of Object.keys(data)) {
-                    const v = data[k];
-                    shapes[k] = Array.isArray(v)
-                      ? { type: 'array', len: v.length, firstKeys: (v[0] && typeof v[0] === 'object') ? Object.keys(v[0]) : typeof v[0] }
-                      : { type: typeof v, keys: (v && typeof v === 'object') ? Object.keys(v) : null };
-                  }
-                  await Actor.setValue('DEBUG_RAW', {
-                    isTopArray: Array.isArray(json),
-                    topKeys: Object.keys(data),
-                    shapes,
-                    dataSample: JSON.stringify(data).slice(0, 8000),
-                  });
-                  log.info(`DEBUG_DUMP: isTopArray=${Array.isArray(json)} topKeys=${Object.keys(data).join(',')} shapes=${JSON.stringify(shapes).slice(0, 400)}`);
-                }
               }
             }
           } catch { /* not json */ }
