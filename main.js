@@ -287,18 +287,24 @@ Actor.main(async () => {
   log.info(`Base URL: ${baseUrl}`);
 
   let totalScraped = 0;
-  const apiResponses = [];
 
   const crawler = new PlaywrightCrawler({
     maxConcurrency: 1,
-    requestHandlerTimeoutSecs: 60,
+    // goto (30s) + product wait (45s) + DOM fallback must fit inside this budget,
+    // otherwise the handler is aborted mid-extraction and the run returns 0 items.
+    requestHandlerTimeoutSecs: 120,
 
     async requestHandler({ page, request }) {
       const currentPage = request.userData.page || 1;
       log.info(`Processing page ${currentPage}...`);
 
-      // Intercept all fetch/XHR responses
+      // Intercept all fetch/XHR responses. Products are extracted inside the
+      // listener the moment a product-bearing response arrives — a blind sleep
+      // was racing against SearchProductV5, which can land 30s+ after navigate.
+      const PRODUCT_WAIT_MS = 45000;
       const capturedResponses = [];
+      let allProducts = [];
+
       page.on('response', async (response) => {
         const url = response.url();
         const ct = response.headers()['content-type'] || '';
@@ -315,6 +321,14 @@ Actor.main(async () => {
             const json = await response.json();
             capturedResponses.push({ url, json });
             log.info(`Captured API response: ${url.slice(0, 100)}...`);
+            // Stream-extract: stop waiting as soon as products are available
+            if (allProducts.length === 0) {
+              const { products, source } = extractProductsFromApiResponse(json);
+              if (products.length > 0) {
+                allProducts = products;
+                log.info(`Found ${products.length} products from ${source}`);
+              }
+            }
           } catch { /* not json */ }
         }
       });
@@ -322,30 +336,25 @@ Actor.main(async () => {
       // Navigate
       await page.goto(request.url, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // Wait for products to load — try multiple strategies
-      log.info('Waiting for products to load...');
-
-      // Wait for either product cards OR API responses
-      try {
-        await Promise.race([
-          page.waitForSelector('[data-testid="master-product-card"], [data-testid="linkProductCard"], div[data-testid="divSRPContentProducts"]', { timeout: 20000 }),
-          new Promise(resolve => setTimeout(resolve, 20000)),
-        ]);
-      } catch { /* timeout ok */ }
-
-      // Extra wait for lazy loading
-      await page.waitForTimeout(3000);
+      // Event-driven wait: poll until a product-bearing response is captured, or
+      // timeout. Exits early on success, so multi-page runs don't pay the full wait.
+      log.info('Waiting for product data...');
+      const deadline = Date.now() + PRODUCT_WAIT_MS;
+      while (allProducts.length === 0 && Date.now() < deadline) {
+        await page.waitForTimeout(1000);
+      }
 
       log.info(`Captured ${capturedResponses.length} API responses`);
 
-      // Try to extract from captured API responses
-      let allProducts = [];
-      for (const { url, json } of capturedResponses) {
-        const { products, source } = extractProductsFromApiResponse(json);
-        if (products.length > 0) {
-          log.info(`Found ${products.length} products from ${source}`);
-          allProducts = products;
-          break;
+      // Fallback: sweep everything captured in case the streaming check missed
+      if (allProducts.length === 0) {
+        for (const { url, json } of capturedResponses) {
+          const { products, source } = extractProductsFromApiResponse(json);
+          if (products.length > 0) {
+            log.info(`Found ${products.length} products from ${source}`);
+            allProducts = products;
+            break;
+          }
         }
       }
 
