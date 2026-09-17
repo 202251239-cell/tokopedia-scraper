@@ -332,14 +332,27 @@ Actor.main(async () => {
                 // mapped against the real payload instead of guessed. Off by
                 // default, and KV (not the dataset) so it is never billed.
                 if (process.env.DEBUG_DUMP === '1') {
-                  const raw = json?.data?.searchProductV5?.[0];
-                  if (raw) {
-                    await Actor.setValue('DEBUG_RAW', {
-                      topLevelKeys: Object.keys(raw),
-                      raw,
-                    });
-                    log.info('DEBUG_DUMP: wrote DEBUG_RAW to key-value store');
+                  // GraphQL responses are wrapped in an array: [{ data: {...} }].
+                  // Do not hardcode a path - locate the first array of product-like
+                  // nodes so the dump works regardless of the shape Tokopedia sends.
+                  const root = Array.isArray(json) ? json[0] : json;
+                  const data = (root && root.data) || root || {};
+                  let raw = null;
+                  for (const key of Object.keys(data)) {
+                    const v = data[key];
+                    if (Array.isArray(v) && v.length && v[0] && typeof v[0] === 'object'
+                        && 'name' in v[0] && ('rating' in v[0] || 'price' in v[0])) {
+                      raw = v[0];
+                      break;
+                    }
                   }
+                  await Actor.setValue('DEBUG_RAW', {
+                    found: Boolean(raw),
+                    topKeys: Object.keys(data),
+                    sampleKeys: raw ? Object.keys(raw) : null,
+                    raw,
+                  });
+                  log.info(`DEBUG_DUMP: found=${Boolean(raw)} topKeys=${Object.keys(data).join(',')}`);
                 }
               }
             }
