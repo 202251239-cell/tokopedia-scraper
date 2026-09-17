@@ -12,7 +12,7 @@ Per product:
 - **Category**: category name
 - **Metadata**: scraped timestamp
 
-Plus a `_metadata` record at the end with search summary stats.
+Plus a run summary in the key-value store (`SUMMARY`): search terms, total products scraped, pages processed, completion time.
 
 ## Use Cases
 
@@ -24,16 +24,16 @@ Plus a `_metadata` record at the end with search summary stats.
 
 ## Pricing
 
-**Pay-per-event**: You pay only for products actually scraped.
+**Pay-per-event**: you pay only for products actually written to the dataset.
 
-| Tier | Price per product |
-|------|-------------------|
-| Free | $0.009 |
-| Bronze | $0.0075 |
+| Apify plan tier | Price per product |
+|-----------------|-------------------|
+| Free | $0.008 |
+| Bronze | $0.007 |
 | Silver | $0.006 |
-| Gold+ | $0.005 |
+| Gold / Platinum / Diamond | $0.005 |
 
-A 50-product search run costs ~$0.45 on the free tier.
+A 50-product search costs ~$0.40 on the free tier. The run summary (search terms, total products, timing) is stored in the run's key-value store under `SUMMARY` — it is **not** billed as a dataset item.
 
 ## Input Parameters
 

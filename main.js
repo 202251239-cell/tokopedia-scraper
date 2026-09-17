@@ -422,13 +422,14 @@ Actor.main(async () => {
 
   await crawler.run(requests);
 
-  await Actor.pushData({
-    _metadata: {
-      searchTerms: input.searchTerms,
-      totalScraped,
-      pages: maxPages,
-      completedAt: new Date().toISOString(),
-    },
+  // Write the run summary to the key-value store, NOT the default dataset.
+  // With pay-per-event pricing on `apify-default-dataset-item`, every default
+  // dataset row is charged to the user — the summary must not be billed.
+  await Actor.setValue('SUMMARY', {
+    searchTerms: input.searchTerms,
+    totalScraped,
+    pages: maxPages,
+    completedAt: new Date().toISOString(),
   });
 
   log.info(`Done! Total: ${totalScraped} products from "${input.searchTerms}"`);
