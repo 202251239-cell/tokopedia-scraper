@@ -177,7 +177,7 @@ function extractProductsFromApiResponse(json) {
     let soldCount = null;
     const credibilityLabel = labelGroups.find(lg => lg.position === 'ri_product_credibility');
     if (credibilityLabel && credibilityLabel.title) {
-      const m = credibilityLabel.title.match(/([\d.]+)(rb|jt|tb)?\s*terjual/i);
+      const m = credibilityLabel.title.match(/([\d.]+)\s*(rb|jt|tb)?\+?\s*terjual/i);
       if (m) {
         let num = parseFloat(m[1]);
         const suffix = (m[2] || '').toLowerCase();
