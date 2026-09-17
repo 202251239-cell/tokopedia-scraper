@@ -80,6 +80,8 @@ function extractProductsFromApiResponse(json) {
 
     const price = p.price || {};
     const shop = p.shop || {};
+    const badge = p.badge || {};
+    const labelGroups = p.labelGroups || [];
     const stats = p.stats || {};
 
     // Parse numeric price from various formats
@@ -87,7 +89,8 @@ function extractProductsFromApiResponse(json) {
     if (typeof price === 'number') {
       numericPrice = price;
     } else if (typeof price === 'object' && price !== null) {
-      numericPrice = typeof price.value === 'number' ? price.value : null;
+      numericPrice = typeof price.number === 'number' ? price.number
+                  : typeof price.value === 'number' ? price.value : null;
     }
     // Fallback: parse from priceText string "Rp24.900" → 24900
     if (numericPrice === null) {
@@ -118,16 +121,23 @@ function extractProductsFromApiResponse(json) {
       if (pct) discount = parseInt(pct, 10) || null;
     }
 
-    // Parse original price
+    // Parse original price — Tokopedia sends price.original as "" when no discount
     let originalPrice = null;
-    if (typeof price === 'object' && price !== null) {
-      originalPrice = price.original || null;
+    if (typeof price === 'object' && price !== null && price.original && price.original !== '') {
+      if (typeof price.original === 'number') {
+        originalPrice = price.original;
+      } else {
+        const cleaned = String(price.original).replace(/[^0-9]/g, '');
+        if (cleaned) originalPrice = parseInt(cleaned, 10) || null;
+      }
     }
-    if (originalPrice === null) originalPrice = p.originalPrice || null;
-    // Parse original price from string
-    if (typeof originalPrice === 'string') {
-      const cleaned = originalPrice.replace(/[^0-9]/g, '');
-      if (cleaned) originalPrice = parseInt(cleaned, 10) || originalPrice;
+    if (originalPrice === null && p.originalPrice && p.originalPrice !== '') {
+      if (typeof p.originalPrice === 'number') {
+        originalPrice = p.originalPrice;
+      } else {
+        const cleaned = String(p.originalPrice).replace(/[^0-9]/g, '');
+        if (cleaned) originalPrice = parseInt(cleaned, 10) || null;
+      }
     }
 
     // Computed discount fallback: originalPrice - price (must be before discountPercent)
@@ -138,7 +148,7 @@ function extractProductsFromApiResponse(json) {
     // Parse discount percent
     let discountPercent = 0;
     if (typeof price === 'object' && price !== null) {
-      discountPercent = price.discountPercent || 0;
+      discountPercent = price.discountPercentage || price.discountPercent || 0;
       // Parse from string like "69%"
       if (!discountPercent && price.discount) {
         const pct = String(price.discount).replace(/[^0-9]/g, '');
@@ -151,19 +161,46 @@ function extractProductsFromApiResponse(json) {
       discountPercent = Math.round((discount / (discount + numericPrice)) * 100);
     }
 
-    // Extract rating
-    const rating = p.rating || {};
-    const avgRating = typeof rating === 'number' ? rating : (rating.average || rating.count || 0);
+    // Parse rating — Tokopedia sends rating as string ("5" or ""), not an object
+    let avgRating = 0;
+    if (typeof p.rating === 'number') {
+      avgRating = p.rating;
+    } else if (typeof p.rating === 'string' && p.rating !== '') {
+      avgRating = parseFloat(p.rating) || 0;
+    } else if (typeof p.rating === 'object' && p.rating !== null) {
+      avgRating = p.rating.average || p.rating.count || 0;
+    }
 
-    // Extract soldCount from various locations
-    const soldCount = p.soldCount || p.countSold || p.meta?.countSold || null;
+    // Parse soldCount from labelGroups
+    // Tokopedia: labelGroups[] where position == "ri_product_credibility"
+    //   title examples: "1rb+ terjual" → 1000, "250+ terjual" → 250, "8 terjual" → 8
+    let soldCount = null;
+    const credibilityLabel = labelGroups.find(lg => lg.position === 'ri_product_credibility');
+    if (credibilityLabel && credibilityLabel.title) {
+      const m = credibilityLabel.title.match(/([\d.]+)(rb|jt|tb)?\s*terjual/i);
+      if (m) {
+        let num = parseFloat(m[1]);
+        const suffix = (m[2] || '').toLowerCase();
+        if (suffix === 'rb') num *= 1000;
+        else if (suffix === 'jt') num *= 1000000;
+        else if (suffix === 'tb') num *= 1e12;
+        soldCount = Math.round(num);
+      }
+    }
+    if (soldCount === null) soldCount = p.soldCount || p.countSold || null;
 
     // Extract reviewCount from rating object
-    const reviewCount = stats.countReview || stats.reviewCount || rating.countReview || p.reviewCount || 0;
+    const reviewCount = stats.countReview || stats.reviewCount || p.reviewCount || 0;
 
     // Extract favoriteCount from wishlist
     const wishlist = p.wishlist || {};
     const favoriteCount = stats.countFavorite || stats.favoriteCount || (typeof wishlist === 'number' ? wishlist : wishlist.count) || p.favoriteCount || 0;
+
+    // isOfficialStore — Tokopedia: badge.url contains "badge_os"
+    const isOfficialStore = (typeof badge.url === 'string' && badge.url.includes('badge_os'))
+      || shop.isOfficial || p.isOfficial || false;
+    // isPowerMerchant
+    const isPowerMerchant = shop.isPowerBadge || p.isPowerBadge || false;
 
     return {
       id: p.id || p.productId || null,
@@ -176,11 +213,11 @@ function extractProductsFromApiResponse(json) {
       currency: (typeof price === 'object' ? price.currency : null) || 'IDR',
       imageUrl: imageUrl,
       url: p.url || p.link || null,
-      shopId: shop.id || p.shopId || null,
+      shopId: shop.idStr || shop.id || p.shopId || null,
       shopName: shop.name || p.shopName || null,
       shopCity: shop.city || p.shopCity || null,
-      isOfficialStore: shop.isOfficial || p.isOfficial || false,
-      isPowerMerchant: shop.isPowerBadge || p.isPowerBadge || false,
+      isOfficialStore,
+      isPowerMerchant,
       rating: avgRating,
       reviewCount: reviewCount,
       favoriteCount: favoriteCount,
