@@ -333,26 +333,24 @@ Actor.main(async () => {
                 // default, and KV (not the dataset) so it is never billed.
                 if (process.env.DEBUG_DUMP === '1') {
                   // GraphQL responses are wrapped in an array: [{ data: {...} }].
-                  // Do not hardcode a path - locate the first array of product-like
-                  // nodes so the dump works regardless of the shape Tokopedia sends.
+                  // Dump SHAPES, not assumptions - a previous attempt hardcoded a
+                  // path and silently produced found=false.
                   const root = Array.isArray(json) ? json[0] : json;
                   const data = (root && root.data) || root || {};
-                  let raw = null;
-                  for (const key of Object.keys(data)) {
-                    const v = data[key];
-                    if (Array.isArray(v) && v.length && v[0] && typeof v[0] === 'object'
-                        && 'name' in v[0] && ('rating' in v[0] || 'price' in v[0])) {
-                      raw = v[0];
-                      break;
-                    }
+                  const shapes = {};
+                  for (const k of Object.keys(data)) {
+                    const v = data[k];
+                    shapes[k] = Array.isArray(v)
+                      ? { type: 'array', len: v.length, firstKeys: (v[0] && typeof v[0] === 'object') ? Object.keys(v[0]) : typeof v[0] }
+                      : { type: typeof v, keys: (v && typeof v === 'object') ? Object.keys(v) : null };
                   }
                   await Actor.setValue('DEBUG_RAW', {
-                    found: Boolean(raw),
+                    isTopArray: Array.isArray(json),
                     topKeys: Object.keys(data),
-                    sampleKeys: raw ? Object.keys(raw) : null,
-                    raw,
+                    shapes,
+                    dataSample: JSON.stringify(data).slice(0, 8000),
                   });
-                  log.info(`DEBUG_DUMP: found=${Boolean(raw)} topKeys=${Object.keys(data).join(',')}`);
+                  log.info(`DEBUG_DUMP: isTopArray=${Array.isArray(json)} topKeys=${Object.keys(data).join(',')} shapes=${JSON.stringify(shapes).slice(0, 400)}`);
                 }
               }
             }
