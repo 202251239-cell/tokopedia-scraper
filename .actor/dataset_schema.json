@@ -3,26 +3,44 @@
     "fields": {
         "type": "object",
         "properties": {
-            "id": {
-                "type": "string",
+            "keyword": {
+                "type": ["string", "null"],
+                "title": "Search keyword",
+                "description": "The search query used to find this product.",
+                "example": "laptop gaming"
+            },
+            "page": {
+                "type": ["number", "null"],
+                "title": "Page number",
+                "description": "Which page of results this product appeared on.",
+                "example": 1
+            },
+            "position": {
+                "type": ["number", "null"],
+                "title": "Position",
+                "description": "Position in the search results (1-indexed).",
+                "example": 1
+            },
+            "productId": {
+                "type": ["string", "null"],
                 "title": "Product ID",
                 "description": "Tokopedia product ID.",
                 "example": "6699703868"
             },
-            "name": {
-                "type": "string",
-                "title": "Product name",
+            "title": {
+                "type": ["string", "null"],
+                "title": "Product title",
                 "description": "Full product title as shown in search results.",
                 "example": "QKZ AK6 Upgrade Earphone Bass Sport Gaming Headset"
             },
             "price": {
-                "type": "number",
+                "type": ["number", "null"],
                 "title": "Price (IDR)",
                 "description": "Current selling price in Indonesian rupiah. Integer, no separators.",
                 "example": 24900
             },
             "priceText": {
-                "type": "string",
+                "type": ["string", "null"],
                 "title": "Price (formatted)",
                 "description": "Display price exactly as Tokopedia renders it.",
                 "example": "Rp24.900"
@@ -52,34 +70,52 @@
                 "example": "IDR"
             },
             "imageUrl": {
-                "type": "string",
-                "title": "Image URL",
+                "type": ["string", "null"],
+                "title": "Main image URL",
                 "description": "Main product image. Tokopedia signs these URLs, so download or mirror them soon after scraping if you need them long-term.",
                 "example": "https://p16-images-sign-sg.tokopedia-static.net/..."
             },
+            "imageUrls": {
+                "type": "array",
+                "title": "All image URLs",
+                "description": "Array of all product image URLs.",
+                "example": ["https://p16-images-sign-sg.tokopedia-static.net/..."]
+            },
             "url": {
-                "type": "string",
+                "type": ["string", "null"],
                 "title": "Product URL",
                 "description": "Canonical product page URL on tokopedia.com.",
                 "example": "https://www.tokopedia.com/kupingsensi/qkz-ak6-headset..."
             },
             "shopId": {
-                "type": "string",
+                "type": ["string", "null"],
                 "title": "Shop ID",
                 "description": "Tokopedia shop ID.",
                 "example": "10426449"
             },
             "shopName": {
-                "type": "string",
+                "type": ["string", "null"],
                 "title": "Shop name",
                 "description": "Display name of the seller.",
                 "example": "Kuping Sensi"
+            },
+            "shopUrl": {
+                "type": ["string", "null"],
+                "title": "Shop URL",
+                "description": "Seller's shop page URL on Tokopedia.",
+                "example": "https://www.tokopedia.com/kupingsensi"
             },
             "shopCity": {
                 "type": ["string", "null"],
                 "title": "Shop city",
                 "description": "Seller's registered city, useful for shipping and regional analysis.",
                 "example": "Jakarta Barat"
+            },
+            "shopTier": {
+                "type": ["number", "null"],
+                "title": "Shop tier",
+                "description": "Seller's tier level on Tokopedia (higher = more established).",
+                "example": 2
             },
             "isOfficialStore": {
                 "type": "boolean",
@@ -90,6 +126,18 @@
                 "type": "boolean",
                 "title": "Power merchant",
                 "description": "True when the seller holds Tokopedia's Power Merchant badge."
+            },
+            "badgeTitle": {
+                "type": ["string", "null"],
+                "title": "Badge title",
+                "description": "Text on the seller's badge (e.g., 'Official Store', city name).",
+                "example": "Surabaya"
+            },
+            "badgeUrl": {
+                "type": ["string", "null"],
+                "title": "Badge URL",
+                "description": "URL of the badge image.",
+                "example": "https://p16-images-comn-sg.tokopedia-static.net/..."
             },
             "rating": {
                 "type": "number",
@@ -113,15 +161,37 @@
                 "title": "Sold count",
                 "description": "Units sold as shown on the listing. Null when the shop does not display it."
             },
+            "categoryId": {
+                "type": ["string", "null"],
+                "title": "Category ID",
+                "description": "Tokopedia category ID.",
+                "example": "297"
+            },
             "categoryName": {
                 "type": ["string", "null"],
-                "title": "Category",
+                "title": "Category name",
                 "description": "Tokopedia category the product belongs to.",
                 "example": "Komputer & Laptop"
             },
-            "scrapedAt": {
+            "categoryBreadcrumb": {
+                "type": ["string", "null"],
+                "title": "Category breadcrumb",
+                "description": "Full category path (e.g., 'komputer-laptop/aksesoris-komputer-laptop/adaptor-laptop').",
+                "example": "komputer-laptop/aksesoris-komputer-laptop/adaptor-laptop"
+            },
+            "isAd": {
+                "type": "boolean",
+                "title": "Is advertisement",
+                "description": "True if this product is a sponsored/advertisement result."
+            },
+            "isWishlist": {
+                "type": "boolean",
+                "title": "Is wishlisted",
+                "description": "True if the product is in the user's wishlist."
+            },
+            "fetchedAt": {
                 "type": "string",
-                "title": "Scraped at",
+                "title": "Fetched at",
                 "description": "ISO 8601 timestamp of when the item was extracted.",
                 "example": "2026-09-17T00:50:34.458Z"
             }
@@ -134,7 +204,7 @@
             "transformation": {
                 "fields": [
                     "imageUrl",
-                    "name",
+                    "title",
                     "price",
                     "originalPrice",
                     "discountPercent",
@@ -149,7 +219,7 @@
                         "label": "Image",
                         "format": "image"
                     },
-                    "name": {
+                    "title": {
                         "label": "Product",
                         "format": "text"
                     },
@@ -181,7 +251,7 @@
             "description": "Everything needed to compare price levels and discount depth across shops.",
             "transformation": {
                 "fields": [
-                    "name",
+                    "title",
                     "price",
                     "originalPrice",
                     "discount",
@@ -220,17 +290,22 @@
                 "fields": [
                     "shopName",
                     "shopCity",
+                    "shopTier",
                     "isOfficialStore",
                     "isPowerMerchant",
                     "rating",
                     "reviewCount",
                     "soldCount",
-                    "name"
+                    "title"
                 ]
             },
             "display": {
                 "component": "table",
                 "properties": {
+                    "shopTier": {
+                        "label": "Tier",
+                        "format": "number"
+                    },
                     "isOfficialStore": {
                         "label": "Official",
                         "format": "boolean"

@@ -30,9 +30,9 @@ function buildSearchUrl(input) {
 }
 
 function normalizeProduct(raw) {
-  // If price is already a number, fromRaw() already normalized — just add scrapedAt
+  // If price is already a number, fromRaw() already normalized — just add fetchedAt
   if (typeof raw.price === 'number' || (raw.price === null && raw.priceText)) {
-    return { ...raw, scrapedAt: raw.scrapedAt || new Date().toISOString() };
+    return { ...raw, fetchedAt: raw.fetchedAt || raw.scrapedAt || new Date().toISOString() };
   }
   // Otherwise normalize from raw Tokopedia data (DOM fallback path)
   const price = raw.price || {};
@@ -62,7 +62,7 @@ function normalizeProduct(raw) {
   };
 }
 
-function extractProductsFromApiResponse(json) {
+function extractProductsFromApiResponse(json, ctx = {}) {
   // Tokopedia GraphQL wraps responses in an array: [{ data: { ... } }]
   // Unwrap first so all path lookups work on the inner object
   if (Array.isArray(json)) {
@@ -73,10 +73,14 @@ function extractProductsFromApiResponse(json) {
 
   // Try all known Tokopedia GraphQL response shapes
   const products = [];
+  let positionCounter = 0; // track position across all products found
 
   // Helper: normalize a raw product object from Tokopedia GraphQL
-  function fromRaw(p) {
+  // ctx = { keyword, page } — passed from the caller; position is auto-incremented
+  function fromRaw(p, extraCtx = {}) {
     if (!p || (!p.name && !p.title)) return null;
+    positionCounter++;
+    const mergedCtx = { ...ctx, position: positionCounter, ...extraCtx };
 
     const price = p.price || {};
     const shop = p.shop || {};
@@ -202,28 +206,83 @@ function extractProductsFromApiResponse(json) {
     // isPowerMerchant
     const isPowerMerchant = shop.isPowerBadge || p.isPowerBadge || false;
 
+    // NEW FIELDS — match competitor output
+    // image_urls: array of all product images
+    const mediaImages = mediaUrl.images || mediaUrl.imageUrls || p.imageUrls || p.images || [];
+    const imageUrls = Array.isArray(mediaImages) ? mediaImages : (imageUrl ? [imageUrl] : []);
+
+    // shop_tier: numeric tier from shop object
+    const shopTier = shop.tier || shop.shopTier || p.shopTier || null;
+
+    // badge_title, badge_url: badge text and image
+    const badgeTitle = badge.title || badge.text || p.badgeTitle || null;
+    const badgeUrl = badge.url || p.badgeUrl || null;
+
+    // category: id, name, breadcrumb
+    const category = p.category || {};
+    const categoryId = category.id || p.categoryId || null;
+    const categoryName = (category && category.name) || p.categoryName || null;
+    const categoryBreadcrumb = category.breadcrumb || category.breadcrumbs || p.categoryBreadcrumb || null;
+
+    // is_ad: sponsored result
+    const isAd = p.isAd || p.isAdvertising || p.isSponsored || false;
+
+    // is_wishlist: user wishlisted
+    const isWishlist = p.isWishlist || p.wishlisted || false;
+
+    // shop_url: shop page URL
+    const shopUrl = shop.url || shop.shopUrl || p.shopUrl || null;
+
+    // keyword, page, position from context
+    const keyword = mergedCtx.keyword || null;
+    const page = mergedCtx.page || null;
+    const position = mergedCtx.position || null;
+
     return {
-      id: p.id || p.productId || null,
-      name: p.name || p.title || null,
+      // Context fields
+      keyword,
+      page,
+      position,
+      // Product identity
+      productId: p.id || p.productId || null,
+      title: p.name || p.title || null,
+      // Pricing
       price: numericPrice,
       priceText: (typeof price === 'object' ? price.text : null) || p.priceText || null,
       originalPrice: originalPrice,
       discount: discount,
       discountPercent: discountPercent,
       currency: (typeof price === 'object' ? price.currency : null) || 'IDR',
+      // Media
       imageUrl: imageUrl,
+      imageUrls: imageUrls,
+      // Links
       url: p.url || p.link || null,
+      // Shop
       shopId: shop.idStr || shop.id || p.shopId || null,
       shopName: shop.name || p.shopName || null,
+      shopUrl: shopUrl,
       shopCity: shop.city || p.shopCity || null,
+      shopTier: shopTier,
       isOfficialStore,
       isPowerMerchant,
+      // Badge
+      badgeTitle,
+      badgeUrl,
+      // Ratings & performance
       rating: avgRating,
       reviewCount: reviewCount,
       favoriteCount: favoriteCount,
       soldCount: soldCount,
-      categoryName: (p.category && p.category.name) || p.categoryName || null,
-      scrapedAt: new Date().toISOString(),
+      // Category
+      categoryId,
+      categoryName,
+      categoryBreadcrumb,
+      // Flags
+      isAd,
+      isWishlist,
+      // Metadata
+      fetchedAt: new Date().toISOString(),
     };
   }
 
@@ -362,7 +421,8 @@ Actor.main(async () => {
             log.info(`Captured API response: ${url.slice(0, 100)}...`);
             // Stream-extract: stop waiting as soon as products are available
             if (allProducts.length === 0) {
-              const { products, source } = extractProductsFromApiResponse(json);
+              const extractCtx = { keyword: input.searchTerms, page: currentPage };
+              const { products, source } = extractProductsFromApiResponse(json, extractCtx);
               if (products.length > 0) {
                 allProducts = products;
                 log.info(`Found ${products.length} products from ${source}`);
@@ -388,7 +448,8 @@ Actor.main(async () => {
       // Fallback: sweep everything captured in case the streaming check missed
       if (allProducts.length === 0) {
         for (const { url, json } of capturedResponses) {
-          const { products, source } = extractProductsFromApiResponse(json);
+          const extractCtx = { keyword: input.searchTerms, page: currentPage };
+          const { products, source } = extractProductsFromApiResponse(json, extractCtx);
           if (products.length > 0) {
             log.info(`Found ${products.length} products from ${source}`);
             allProducts = products;
