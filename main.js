@@ -239,11 +239,11 @@ function extractProductsFromApiResponse(json, ctx = {}) {
     const shopUrl = shop.url || shop.shopUrl || p.shopUrl || null;
 
     // NEW: weight, stock, condition, minOrder, wholesalePrice
-    const weight = p.weight || p.productWeight || null;
-    const stock = p.stock || p.initialStock || p.currentStock || null;
-    const condition = p.condition || p.itemCondition || null;
-    const minOrder = p.minOrder || p.minOrderBase || null;
-    const wholesalePrice = p.wholesalePrice || p.priceWholesale || null;
+    const weight = typeof p.weight === 'number' ? p.weight : (typeof p.productWeight === 'number' ? p.productWeight : null);
+    const stock = typeof p.stock === 'number' ? p.stock : (typeof p.initialStock === 'number' ? p.initialStock : null);
+    const condition = typeof p.condition === 'string' ? p.condition : (typeof p.itemCondition === 'string' ? p.itemCondition : null);
+    const minOrder = typeof p.minOrder === 'number' ? p.minOrder : (typeof p.minOrderBase === 'number' ? p.minOrderBase : null);
+    const wholesalePrice = typeof p.wholesalePrice === 'number' ? p.wholesalePrice : (typeof p.priceWholesale === 'number' ? p.priceWholesale : null);
 
     // keyword, page, position from context
     const keyword = mergedCtx.keyword || null;
