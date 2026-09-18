@@ -58,7 +58,8 @@ Scrape product search results from **Tokopedia** — Indonesia's #1 marketplace 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `searchTerms` | string | ✅ | Search keyword (e.g. "laptop gaming") |
-| `maxPages` | integer | No | Pages to scrape (1-50, default: 1) |
+| `keywords` | array | No | **Bulk scrape** multiple keywords. JSON array: `["kw1","kw2","kw3"]` |
+| `maxPages` | integer | No | Pages per keyword (1-50, default: 1) |
 | `minRating` | number | No | Minimum rating filter (0-5) |
 | `sortBy` | select | No | Sort: relevance, newest, price_high, price_low, popular, reviews |
 | `minPrice` | integer | No | Min price in IDR |

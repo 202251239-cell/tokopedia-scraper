@@ -390,21 +390,36 @@ function extractProductsFromApiResponse(json, ctx = {}) {
 
 Actor.main(async () => {
   const input = await Actor.getInput();
-  if (!input || !input.searchTerms) {
-    throw new Error('Input "searchTerms" is required');
+  if (!input) throw new Error('Input is required');
+
+  // Support bulk keywords or single searchTerms
+  const keywords = (input.keywords && input.keywords.length > 0)
+    ? input.keywords
+    : [input.searchTerms];
+  if (!keywords.length || !keywords[0]) {
+    throw new Error('Either "searchTerms" or "keywords" array is required');
   }
 
   const maxPages = Math.min(input.maxPages || 1, 50);
   const minRating = parseFloat(input.minRating) || 0;
-  const baseUrl = buildSearchUrl(input);
 
-  log.info(`Starting Tokopedia scrape: "${input.searchTerms}" (${maxPages} pages, minRating=${minRating})`);
-  log.info(`Base URL: ${baseUrl}`);
+  log.info(`Starting Tokopedia scrape: ${keywords.length} keyword(s), ${maxPages} pages each`);
+  log.info(`Keywords: ${keywords.map(k => `"${k}"`).join(', ')}`);
 
   let totalScraped = 0;
   const seenIds = new Set(); // dedup across pages — Tokopedia often returns identical products
 
-  const crawler = new PlaywrightCrawler({
+  let lastKeyword = '';
+  const crawlResults = [];
+
+  // Build requests for all keywords × all pages
+  for (const kw of keywords) {
+    lastKeyword = kw;
+    const inputWithKw = { ...input, searchTerms: kw };
+    const baseUrl = buildSearchUrl(inputWithKw);
+    log.info(`Keyword "${kw}": ${baseUrl}`);
+
+    const crawler = new PlaywrightCrawler({
     maxConcurrency: 1,
     // goto (30s) + product wait (45s) + DOM fallback must fit inside this budget,
     // otherwise the handler is aborted mid-extraction and the run returns 0 items.
@@ -439,7 +454,7 @@ Actor.main(async () => {
             log.info(`Captured API response: ${url.slice(0, 100)}...`);
             // Stream-extract: stop waiting as soon as products are available
             if (allProducts.length === 0) {
-              const extractCtx = { keyword: input.searchTerms, page: currentPage };
+              const extractCtx = { keyword: lastKeyword, page: currentPage };
               const { products, source } = extractProductsFromApiResponse(json, extractCtx);
               if (products.length > 0) {
                 allProducts = products;
@@ -466,7 +481,7 @@ Actor.main(async () => {
       // Fallback: sweep everything captured in case the streaming check missed
       if (allProducts.length === 0) {
         for (const { url, json } of capturedResponses) {
-          const extractCtx = { keyword: input.searchTerms, page: currentPage };
+          const extractCtx = { keyword: lastKeyword, page: currentPage };
           const { products, source } = extractProductsFromApiResponse(json, extractCtx);
           if (products.length > 0) {
             log.info(`Found ${products.length} products from ${source}`);
@@ -559,15 +574,18 @@ Actor.main(async () => {
 
   await crawler.run(requests);
 
+    log.info(`Done keyword "${lastKeyword}": ${totalScraped} total products so far`);
+  } // end keyword loop
+
   // Write the run summary to the key-value store, NOT the default dataset.
   // With pay-per-event pricing on `apify-default-dataset-item`, every default
   // dataset row is charged to the user — the summary must not be billed.
   await Actor.setValue('SUMMARY', {
-    searchTerms: input.searchTerms,
+    keywords,
     totalScraped,
-    pages: maxPages,
+    pagesPerKeyword: maxPages,
     completedAt: new Date().toISOString(),
   });
 
-  log.info(`Done! Total: ${totalScraped} products from "${input.searchTerms}"`);
+  log.info(`Done! Total: ${totalScraped} products from ${keywords.length} keyword(s)`);
 });

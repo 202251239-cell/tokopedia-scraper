@@ -7,10 +7,18 @@
   "properties": {
     "searchTerms": {
       "title": "Search Keywords",
-      "description": "Keywords to search for on Tokopedia (e.g., 'laptop gaming', 'sepatu nike')",
+      "description": "Keywords to search for on Tokopedia (e.g., 'laptop gaming', 'sepatu nike'). For bulk scraping, use the 'keywords' field instead.",
       "type": "string",
       "editor": "textfield",
       "prefill": "laptop gaming"
+    },
+    "keywords": {
+      "title": "Bulk Keywords",
+      "description": "Scrape multiple keywords in one run. Provide as JSON array: [\"laptop gaming\", \"laptop murah\", \"laptop asus\"]. When provided, 'searchTerms' is ignored.",
+      "type": "array",
+      "items": { "type": "string" },
+      "editor": "stringList",
+      "default": []
     },
     "maxPages": {
       "title": "Max Pages",
