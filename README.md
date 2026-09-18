@@ -4,15 +4,19 @@ Scrape product search results from [Tokopedia](https://www.tokopedia.com) — In
 
 ## What It Extracts
 
-Per product:
-- **Identity**: product ID, name, URL, image URL
-- **Pricing**: current price (numeric), price text (formatted), original price, discount amount, discount percentage, currency (IDR)
-- **Shop**: shop ID, name, city, official store status, power merchant status
-- **Performance**: rating, review count, favorite count, sold count
-- **Category**: category name
-- **Metadata**: scraped timestamp
+**30+ fields per product:**
 
-Plus a run summary in the key-value store (`SUMMARY`): search terms, total products scraped, pages processed, completion time.
+| Category | Fields |
+|----------|--------|
+| Context | keyword, page, position |
+| Product | productId, title, URL, imageUrl, imageUrls |
+| Pricing | price, priceText, originalPrice, discount, discountPercent, currency |
+| Shop | shopId, shopName, shopUrl, shopCity, shopTier, isOfficialStore, isPowerMerchant |
+| Badge | badgeTitle, badgeUrl |
+| Performance | rating, reviewCount, favoriteCount, soldCount |
+| Category | categoryId, categoryName, categoryBreadcrumb |
+| Flags | isAd, isWishlist |
+| Metadata | fetchedAt |
 
 ## Use Cases
 
@@ -28,12 +32,12 @@ Plus a run summary in the key-value store (`SUMMARY`): search terms, total produ
 
 | Apify plan tier | Price per product |
 |-----------------|-------------------|
-| Free | $0.008 |
-| Bronze | $0.007 |
-| Silver | $0.006 |
-| Gold / Platinum / Diamond | $0.005 |
+| Free | $0.001 |
+| Bronze | $0.0009 |
+| Silver | $0.0008 |
+| Gold+ | $0.0007 |
 
-A 50-product search costs ~$0.40 on the free tier. The run summary (search terms, total products, timing) is stored in the run's key-value store under `SUMMARY` — it is **not** billed as a dataset item.
+A 50-product search costs ~$0.05 on the free tier. The run summary is stored in the key-value store — not billed.
 
 ## Input Parameters
 
@@ -52,27 +56,39 @@ A 50-product search costs ~$0.40 on the free tier. The run summary (search terms
 
 ```json
 {
-  "id": "102139308541",
-  "name": "VIKING Baterai BM59 For Xiaomi Mi 11T Double Power",
-  "price": 143000,
-  "priceText": "Rp143.000",
-  "originalPrice": 183000,
-  "discount": 40000,
-  "discountPercent": 22,
+  "keyword": "headset gaming",
+  "page": 1,
+  "position": 1,
+  "productId": "3131173901",
+  "title": "Earphone I Earbuds I Headset Gaming with Mic JETEX HX11",
+  "price": 242158,
+  "priceText": "Rp242.158",
+  "originalPrice": 349900,
+  "discount": 107742,
+  "discountPercent": 31,
   "currency": "IDR",
   "imageUrl": "https://p16-images-sign-sg.tokopedia-static.net/...",
-  "url": "https://www.tokopedia.com/vikingpowerbattery/viking-baterai-bm59...",
-  "shopId": 7548661,
-  "shopName": "VIKING OFFICIAL STORE",
-  "shopCity": "Jakarta Pusat",
-  "isOfficialStore": false,
+  "imageUrls": [],
+  "url": "https://www.tokopedia.com/doran-gadget-manado/...",
+  "shopId": "271905",
+  "shopName": "Doran Gadget Manado",
+  "shopUrl": "https://www.tokopedia.com/doran-gadget-manado",
+  "shopCity": "Surabaya",
+  "shopTier": 2,
+  "isOfficialStore": true,
   "isPowerMerchant": false,
-  "rating": 4.8,
-  "reviewCount": 125,
-  "favoriteCount": 89,
-  "soldCount": 500,
-  "categoryName": "Handphone & Aksesoris",
-  "scrapedAt": "2026-09-16T12:00:00.000Z"
+  "badgeTitle": "Surabaya",
+  "badgeUrl": "https://p16-images-comn-sg.tokopedia-static.net/...",
+  "rating": 5,
+  "reviewCount": 0,
+  "favoriteCount": 0,
+  "soldCount": 2,
+  "categoryId": "297",
+  "categoryName": "Komputer & Laptop",
+  "categoryBreadcrumb": "komputer-laptop/aksesoris-pc-gaming/headset-gaming",
+  "isAd": false,
+  "isWishlist": false,
+  "fetchedAt": "2026-09-18T11:16:07.397Z"
 }
 ```
 
