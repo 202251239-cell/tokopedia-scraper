@@ -189,6 +189,36 @@
                 "title": "Is wishlisted",
                 "description": "True if the product is in the user's wishlist."
             },
+            "weight": {
+                "type": ["number", "null"],
+                "title": "Weight (gram)",
+                "description": "Product weight in grams. Useful for shipping cost calculation.",
+                "example": 500
+            },
+            "stock": {
+                "type": ["number", "null"],
+                "title": "Stock",
+                "description": "Available stock quantity. Null when not displayed.",
+                "example": 100
+            },
+            "condition": {
+                "type": ["string", "null"],
+                "title": "Condition",
+                "description": "Product condition: 'Baru' (new) or 'Bekas' (used).",
+                "example": "Baru"
+            },
+            "minOrder": {
+                "type": ["number", "null"],
+                "title": "Minimum order",
+                "description": "Minimum order quantity. Null when default is 1.",
+                "example": 1
+            },
+            "wholesalePrice": {
+                "type": ["number", "null"],
+                "title": "Wholesale price (IDR)",
+                "description": "Wholesale/bulk price when available. Null when no wholesale pricing.",
+                "example": 20000
+            },
             "fetchedAt": {
                 "type": "string",
                 "title": "Fetched at",

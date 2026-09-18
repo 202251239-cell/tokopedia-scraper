@@ -58,6 +58,11 @@ function normalizeProduct(raw) {
     favoriteCount: stats.countFavorite || raw.favoriteCount || 0,
     soldCount: raw.soldCount || raw.countSold || null,
     categoryName: raw.categoryName || null,
+    weight: raw.weight || raw.productWeight || null,
+    stock: raw.stock || raw.initialStock || null,
+    condition: raw.condition || raw.itemCondition || null,
+    minOrder: raw.minOrder || null,
+    wholesalePrice: raw.wholesalePrice || null,
     scrapedAt: new Date().toISOString(),
   };
 }
@@ -233,6 +238,13 @@ function extractProductsFromApiResponse(json, ctx = {}) {
     // shop_url: shop page URL
     const shopUrl = shop.url || shop.shopUrl || p.shopUrl || null;
 
+    // NEW: weight, stock, condition, minOrder, wholesalePrice
+    const weight = p.weight || p.productWeight || null;
+    const stock = p.stock || p.initialStock || p.currentStock || null;
+    const condition = p.condition || p.itemCondition || null;
+    const minOrder = p.minOrder || p.minOrderBase || null;
+    const wholesalePrice = p.wholesalePrice || p.priceWholesale || null;
+
     // keyword, page, position from context
     const keyword = mergedCtx.keyword || null;
     const page = mergedCtx.page || null;
@@ -281,6 +293,12 @@ function extractProductsFromApiResponse(json, ctx = {}) {
       // Flags
       isAd,
       isWishlist,
+      // Product details
+      weight,
+      stock,
+      condition,
+      minOrder,
+      wholesalePrice,
       // Metadata
       fetchedAt: new Date().toISOString(),
     };
