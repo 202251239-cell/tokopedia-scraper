@@ -4,55 +4,82 @@
         "type": "object",
         "properties": {
             "keyword": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Search keyword",
                 "description": "The search query used to find this product.",
                 "example": "laptop gaming"
             },
             "page": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Page number",
                 "description": "Which page of results this product appeared on.",
                 "example": 1
             },
             "position": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Position",
                 "description": "Position in the search results (1-indexed).",
                 "example": 1
             },
             "productId": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Product ID",
                 "description": "Tokopedia product ID.",
                 "example": "6699703868"
             },
             "title": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Product title",
                 "description": "Full product title as shown in search results.",
                 "example": "QKZ AK6 Upgrade Earphone Bass Sport Gaming Headset"
             },
             "price": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Price (IDR)",
                 "description": "Current selling price in Indonesian rupiah. Integer, no separators.",
                 "example": 24900
             },
             "priceText": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Price (formatted)",
                 "description": "Display price exactly as Tokopedia renders it.",
                 "example": "Rp24.900"
             },
             "originalPrice": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Original price (IDR)",
                 "description": "Pre-discount price. Null when the product has no discount.",
                 "example": 64900
             },
             "discount": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Discount (IDR)",
                 "description": "Absolute discount in rupiah, always equal to originalPrice - price. Null when there is no discount.",
                 "example": 40000
@@ -70,7 +97,10 @@
                 "example": "IDR"
             },
             "imageUrl": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Main image URL",
                 "description": "Main product image. Tokopedia signs these URLs, so download or mirror them soon after scraping if you need them long-term.",
                 "example": "https://p16-images-sign-sg.tokopedia-static.net/..."
@@ -79,40 +109,60 @@
                 "type": "array",
                 "title": "All image URLs",
                 "description": "Array of all product image URLs.",
-                "example": ["https://p16-images-sign-sg.tokopedia-static.net/..."]
+                "example": [
+                    "https://p16-images-sign-sg.tokopedia-static.net/..."
+                ]
             },
             "url": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Product URL",
                 "description": "Canonical product page URL on tokopedia.com.",
                 "example": "https://www.tokopedia.com/kupingsensi/qkz-ak6-headset..."
             },
             "shopId": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Shop ID",
                 "description": "Tokopedia shop ID.",
                 "example": "10426449"
             },
             "shopName": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Shop name",
                 "description": "Display name of the seller.",
                 "example": "Kuping Sensi"
             },
             "shopUrl": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Shop URL",
                 "description": "Seller's shop page URL on Tokopedia.",
                 "example": "https://www.tokopedia.com/kupingsensi"
             },
             "shopCity": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Shop city",
                 "description": "Seller's registered city, useful for shipping and regional analysis.",
                 "example": "Jakarta Barat"
             },
             "shopTier": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Shop tier",
                 "description": "Seller's tier level on Tokopedia (higher = more established).",
                 "example": 2
@@ -128,13 +178,19 @@
                 "description": "True when the seller holds Tokopedia's Power Merchant badge."
             },
             "badgeTitle": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Badge title",
                 "description": "Text on the seller's badge (e.g., 'Official Store', city name).",
                 "example": "Surabaya"
             },
             "badgeUrl": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Badge URL",
                 "description": "URL of the badge image.",
                 "example": "https://p16-images-comn-sg.tokopedia-static.net/..."
@@ -157,24 +213,36 @@
                 "description": "How many users wishlisted the product. 0 when unavailable."
             },
             "soldCount": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Sold count",
                 "description": "Units sold as shown on the listing. Null when the shop does not display it."
             },
             "categoryId": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Category ID",
                 "description": "Tokopedia category ID.",
                 "example": "297"
             },
             "categoryName": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Category name",
                 "description": "Tokopedia category the product belongs to.",
                 "example": "Komputer & Laptop"
             },
             "categoryBreadcrumb": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Category breadcrumb",
                 "description": "Full category path (e.g., 'komputer-laptop/aksesoris-komputer-laptop/adaptor-laptop').",
                 "example": "komputer-laptop/aksesoris-komputer-laptop/adaptor-laptop"
@@ -190,31 +258,46 @@
                 "description": "True if the product is in the user's wishlist."
             },
             "weight": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Weight (gram)",
                 "description": "Product weight in grams. Useful for shipping cost calculation.",
                 "example": 500
             },
             "stock": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Stock",
                 "description": "Available stock quantity. Null when not displayed.",
                 "example": 100
             },
             "condition": {
-                "type": ["string", "null"],
+                "type": [
+                    "string",
+                    "null"
+                ],
                 "title": "Condition",
                 "description": "Product condition: 'Baru' (new) or 'Bekas' (used).",
                 "example": "Baru"
             },
             "minOrder": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Minimum order",
                 "description": "Minimum order quantity. Null when default is 1.",
                 "example": 1
             },
             "wholesalePrice": {
-                "type": ["number", "null"],
+                "type": [
+                    "number",
+                    "null"
+                ],
                 "title": "Wholesale price (IDR)",
                 "description": "Wholesale/bulk price when available. Null when no wholesale pricing.",
                 "example": 20000
@@ -225,7 +308,8 @@
                 "description": "ISO 8601 timestamp of when the item was extracted.",
                 "example": "2026-09-17T00:50:34.458Z"
             }
-        }
+        },
+        "additionalProperties": true
     },
     "views": {
         "overview": {
