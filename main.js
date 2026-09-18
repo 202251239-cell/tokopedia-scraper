@@ -507,10 +507,10 @@ Actor.main(async () => {
       let pushedThisPage = 0;
       for (const raw of allProducts) {
         const normalized = normalizeProduct(raw);
-        if (!normalized.name) continue;
+        if (!normalized.title && !normalized.name) continue;
 
         // Dedup by product ID or URL (across pages)
-        const dedupKey = normalized.id || normalized.url;
+        const dedupKey = normalized.productId || normalized.id || normalized.url;
         if (dedupKey && seenIds.has(dedupKey)) continue;
         if (dedupKey) seenIds.add(dedupKey);
 
