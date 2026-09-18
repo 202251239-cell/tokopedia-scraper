@@ -3,7 +3,6 @@
   "description": "Scrape product search results from Tokopedia (Indonesia's largest marketplace). Extracts product name, price, discount, shop info, ratings, reviews, and more.",
   "type": "object",
   "schemaVersion": 1,
-  "required": ["searchTerms"],
   "properties": {
     "searchTerms": {
       "title": "Search Keywords",
@@ -16,7 +15,9 @@
       "title": "Bulk Keywords",
       "description": "Scrape multiple keywords in one run. Provide as JSON array: [\"laptop gaming\", \"laptop murah\", \"laptop asus\"]. When provided, 'searchTerms' is ignored.",
       "type": "array",
-      "items": { "type": "string" },
+      "items": {
+        "type": "string"
+      },
       "editor": "stringList",
       "default": []
     },
