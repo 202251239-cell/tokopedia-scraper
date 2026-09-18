@@ -1,106 +1,120 @@
-# Tokopedia Product Search Scraper
+# Tokopedia Search Scraper
 
-Scrape product search results from [Tokopedia](https://www.tokopedia.com) — Indonesia's largest online marketplace with 100M+ monthly visitors.
+Scrape product search results from **Tokopedia** — Indonesia's #1 marketplace — into clean JSON with **30+ fields** per product.
 
-## What It Extracts
+## Why This Actor?
 
-**30+ fields per product:**
+- **30+ output fields** — more data per product than any other Tokopedia scraper
+- **Auto anti-bot bypass** — PlaywrightCrawler handles Tokopedia's bot detection automatically
+- **Multi-page scraping** — scrape up to 50 pages (~3,000 products per keyword)
+- **Deduplication** — automatic duplicate removal across pages
+- **Fast & reliable** — intercepts GraphQL API responses, not DOM parsing
 
-| Category | Fields |
-|----------|--------|
-| Context | keyword, page, position |
-| Product | productId, title, URL, imageUrl, imageUrls |
-| Pricing | price, priceText, originalPrice, discount, discountPercent, currency |
-| Shop | shopId, shopName, shopUrl, shopCity, shopTier, isOfficialStore, isPowerMerchant |
-| Badge | badgeTitle, badgeUrl |
-| Performance | rating, reviewCount, favoriteCount, soldCount |
-| Category | categoryId, categoryName, categoryBreadcrumb |
-| Flags | isAd, isWishlist |
-| Metadata | fetchedAt |
+## Output Fields
 
-## Use Cases
+| Field | Description |
+|-------|-------------|
+| `keyword` | Search keyword used |
+| `page` | Page number |
+| `position` | Product position in results |
+| `productId` | Tokopedia product ID |
+| `title` | Product title |
+| `price` | Current price (IDR) |
+| `priceText` | Formatted price string |
+| `originalPrice` | Price before discount |
+| `discount` | Discount amount |
+| `discountPercent` | Discount percentage |
+| `currency` | Currency code (IDR) |
+| `imageUrl` | Primary image URL |
+| `imageUrls` | Array of all image URLs |
+| `url` | Product page URL |
+| `shopId` | Shop ID |
+| `shopName` | Shop name |
+| `shopUrl` | Shop page URL |
+| `shopCity` | Shop location |
+| `shopTier` | Shop tier level |
+| `isOfficialStore` | Official store badge |
+| `isPowerMerchant` | Power merchant badge |
+| `badgeTitle` | Badge text |
+| `badgeUrl` | Badge image URL |
+| `rating` | Average rating (0-5) |
+| `reviewCount` | Number of reviews |
+| `favoriteCount` | Number of favorites/wishlists |
+| `soldCount` | Units sold |
+| `categoryId` | Category ID |
+| `categoryName` | Category name |
+| `categoryBreadcrumb` | Full category path |
+| `isAd` | Sponsored result flag |
+| `isWishlist` | Wishlisted flag |
+| `fetchedAt` | Scrape timestamp |
 
-- **Price monitoring**: Track product prices over time for dropshipping decisions
-- **Market research**: Analyze pricing trends, discount patterns, and competitor positioning
-- **Product research**: Find trending products, high-rated items, or specific niches
-- **Competitive intelligence**: Monitor official store offerings vs regular sellers
-- **Data enrichment**: Feed structured product data into analytics pipelines
+## Input
 
-## Pricing
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `searchTerms` | string | ✅ | Search keyword (e.g. "laptop gaming") |
+| `maxPages` | integer | No | Pages to scrape (1-50, default: 1) |
+| `minRating` | number | No | Minimum rating filter (0-5) |
+| `sortBy` | select | No | Sort: relevance, newest, price_high, price_low, popular, reviews |
+| `minPrice` | integer | No | Min price in IDR |
+| `maxPrice` | integer | No | Max price in IDR |
+| `officialStore` | boolean | No | Official store only |
+| `location` | string | No | Seller city filter |
 
-**Pay-per-event**: you pay only for products actually written to the dataset.
-
-| Apify plan tier | Price per product |
-|-----------------|-------------------|
-| Free | $0.001 |
-| Bronze | $0.0009 |
-| Silver | $0.0008 |
-| Gold+ | $0.0007 |
-
-A 50-product search costs ~$0.05 on the free tier. The run summary is stored in the key-value store — not billed.
-
-## Input Parameters
-
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `searchTerms` | ✅ | — | Search keywords (e.g., "laptop gaming") |
-| `maxPages` | | 1 | Pages to scrape (1–50, each = up to 60 products) |
-| `sortBy` | | Relevance | Sort: relevance, newest, price (high/low), popular, reviews |
-| `minPrice` | | — | Minimum price filter (IDR) |
-| `maxPrice` | | — | Maximum price filter (IDR) |
-| `minRating` | | — | Minimum product rating (1–4) |
-| `officialStore` | | false | Official stores only |
-| `location` | | — | Filter by seller city |
-
-## Output Example
+## Sample Output
 
 ```json
 {
-  "keyword": "headset gaming",
+  "keyword": "laptop gaming",
   "page": 1,
   "position": 1,
-  "productId": "3131173901",
-  "title": "Earphone I Earbuds I Headset Gaming with Mic JETEX HX11",
-  "price": 242158,
-  "priceText": "Rp242.158",
-  "originalPrice": 349900,
-  "discount": 107742,
-  "discountPercent": 31,
+  "productId": 123456789,
+  "title": "Laptop Gaming ASUS ROG Strix G15 RTX 3060",
+  "price": 12999000,
+  "priceText": "Rp12.999.000",
+  "originalPrice": 15999000,
+  "discount": 3000000,
+  "discountPercent": 19,
   "currency": "IDR",
-  "imageUrl": "https://p16-images-sign-sg.tokopedia-static.net/...",
-  "imageUrls": [],
-  "url": "https://www.tokopedia.com/doran-gadget-manado/...",
-  "shopId": "271905",
-  "shopName": "Doran Gadget Manado",
-  "shopUrl": "https://www.tokopedia.com/doran-gadget-manado",
-  "shopCity": "Surabaya",
-  "shopTier": 2,
+  "imageUrl": "https://images.tokopedia.net/img/cache/...",
+  "url": "https://www.tokopedia.com/shop/product",
+  "shopId": "98765432",
+  "shopName": "ASUS Official Store",
+  "shopCity": "Jakarta",
   "isOfficialStore": true,
-  "isPowerMerchant": false,
-  "badgeTitle": "Surabaya",
-  "badgeUrl": "https://p16-images-comn-sg.tokopedia-static.net/...",
-  "rating": 5,
-  "reviewCount": 0,
-  "favoriteCount": 0,
-  "soldCount": 2,
-  "categoryId": "297",
-  "categoryName": "Komputer & Laptop",
-  "categoryBreadcrumb": "komputer-laptop/aksesoris-pc-gaming/headset-gaming",
-  "isAd": false,
-  "isWishlist": false,
-  "fetchedAt": "2026-09-18T11:16:07.397Z"
+  "isPowerMerchant": true,
+  "rating": 4.9,
+  "reviewCount": 150,
+  "soldCount": 500,
+  "categoryName": "Laptops",
+  "fetchedAt": "2026-09-18T10:00:00.000Z"
 }
 ```
 
-## Rate Limits & Best Practices
+## Pricing
 
-- Max 60 products per page, max 50 pages per run (3000 products)
-- Built-in page load waiting to avoid rate limiting
-- If rate-limited (HTTP 429), the actor waits and retries automatically
-- Free Apify tier includes enough credits for ~5,000 products/month
+Pay-per-item: **$0.001** per product scraped.
 
-## About
+| Tier | Price/Item |
+|------|-----------|
+| FREE | $0.001 |
+| BRONZE | $0.0009 |
+| SILVER | $0.0008 |
+| GOLD+ | $0.0007 |
 
-Built by [RGamer-Z](https://github.com/202251239-cell). Part of the [Apify Store](https://apify.com/store).
+## Use Cases
 
-For issues or feature requests, open a GitHub issue or contact via Apify.
+- **Price monitoring** — track price changes over time
+- **Market research** — analyze product trends and competition
+- **Competitive intelligence** — monitor competitor pricing and stock
+- **Data analysis** — build datasets for ML/AI projects
+- **Dropshipping** — find suppliers and compare prices
+
+## Limitations
+
+- Tokopedia may rate-limit aggressive scraping. The actor includes random delays.
+- Some fields may be null if Tokopedia doesn't return them for certain products.
+
+## Legal
+
+This actor only extracts publicly available listing data from Tokopedia. Use responsibly and comply with Tokopedia's terms of service.
