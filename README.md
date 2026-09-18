@@ -46,6 +46,11 @@ Scrape product search results from **Tokopedia** — Indonesia's #1 marketplace 
 | `categoryBreadcrumb` | Full category path |
 | `isAd` | Sponsored result flag |
 | `isWishlist` | Wishlisted flag |
+| `weight` | Product weight in grams (from detail page) |
+| `stock` | Available stock quantity |
+| `condition` | Product condition (Baru/Bekas) |
+| `minOrder` | Minimum order quantity |
+| `wholesalePrice` | Wholesale/bulk price |
 | `fetchedAt` | Scrape timestamp |
 
 ## Input
